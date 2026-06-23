@@ -1,0 +1,266 @@
+/* ============================================================
+   Kraken-Inspired Theme — Balance
+   ============================================================ */
+
+:root {
+  /* Primary — Kraken Purple */
+  --kraken-purple: #7132f5;
+  --kraken-purple-dark: #5741d8;
+  --kraken-purple-deep: #5b1ecf;
+  --kraken-purple-subtle: rgba(133, 91, 251, 0.16);
+
+  /* Neutral */
+  --cool-gray: #686b82;
+  --silver-blue: #9497a9;
+  --border-gray: #dedee5;
+  --near-black: #101114;
+
+  /* Semantic */
+  --green: #149e61;
+  --green-dark: #026b3f;
+  --green-subtle: rgba(20, 158, 97, 0.16);
+  --red: #e03e3e;
+  --red-subtle: rgba(224, 62, 62, 0.1);
+
+  /* Surfaces */
+  --bg-base: #ffffff;
+  --bg-surface: #f8f9fc;
+  --bg-elevated: #f1f2f6;
+
+  /* Text */
+  --text-primary: #101114;
+  --text-secondary: #686b82;
+  --text-muted: #9497a9;
+  --text-on-primary: #ffffff;
+
+  /* Chart — HOSxP side (purple family) */
+  --chart-hosxp: #7132f5;
+  --chart-hosxp-light: rgba(113, 50, 245, 0.18);
+  --chart-hosxp-line: #5741d8;
+
+  /* Chart — INVS side (green family) */
+  --chart-invs: #149e61;
+  --chart-invs-light: rgba(20, 158, 97, 0.18);
+  --chart-invs-line: #026b3f;
+
+  /* Borders & Shadows */
+  --border-subtle: rgba(104, 107, 130, 0.12);
+  --border-active: rgba(113, 50, 245, 0.4);
+  --shadow-card: 0 2px 12px rgba(0, 0, 0, 0.03);
+  --shadow-hover: 0 4px 24px rgba(0, 0, 0, 0.06);
+
+  /* Typography */
+  --font-display: 'IBM Plex Sans', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  --font-body: 'IBM Plex Sans', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  --font-mono: 'IBM Plex Mono', 'Courier New', monospace;
+
+  /* Spacing */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+
+  /* Transitions */
+  --transition-fast: 150ms ease;
+  --transition-med: 250ms ease;
+}
+
+/* ─── Reset & Base ─────────────────────────────────────────── */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body,
+#app {
+  height: 100%;
+  width: 100%;
+}
+
+body {
+  font-family: var(--font-body);
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--text-primary);
+  background-color: var(--bg-base);
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+}
+
+/* ─── Scrollbar ─────────────────────────────────────────────── */
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(104, 107, 130, 0.25);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(104, 107, 130, 0.4);
+}
+
+/* ─── Buttons ────────────────────────────────────────────────── */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border-radius: var(--radius-lg);
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  border: none;
+  transition: background var(--transition-fast), transform var(--transition-fast);
+}
+
+.btn:active {
+  transform: scale(0.97);
+}
+
+.btn-primary {
+  background: var(--kraken-purple);
+  color: var(--text-on-primary);
+}
+
+.btn-primary:hover {
+  background: var(--kraken-purple-dark);
+}
+
+.btn-ghost {
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid var(--border-subtle);
+}
+
+.btn-ghost:hover {
+  background: var(--bg-elevated);
+  border-color: var(--border-gray);
+}
+
+/* ─── Input ─────────────────────────────────────────────────── */
+
+.input {
+  width: 100%;
+  padding: 8px 12px;
+  background: var(--bg-base);
+  border: 1px solid var(--border-gray);
+  border-radius: var(--radius-lg);
+  font-family: var(--font-body);
+  font-size: 14px;
+  color: var(--text-primary);
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+  outline: none;
+}
+
+.input:focus {
+  border-color: var(--kraken-purple);
+  box-shadow: 0 0 0 3px var(--kraken-purple-subtle);
+}
+
+.input::placeholder {
+  color: var(--text-muted);
+}
+
+/* ─── Card ──────────────────────────────────────────────────── */
+
+.card {
+  background: var(--bg-base);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-card);
+  border: 1px solid var(--border-subtle);
+  transition: box-shadow var(--transition-med);
+}
+
+.card:hover {
+  box-shadow: var(--shadow-hover);
+}
+
+/* ─── Badge ─────────────────────────────────────────────────── */
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.badge-connected {
+  background: var(--green-subtle);
+  color: var(--green-dark);
+}
+
+.badge-disconnected {
+  background: var(--red-subtle);
+  color: var(--red);
+}
+
+/* ─── Animations ────────────────────────────────────────────── */
+
+@keyframes fadeSlideUp {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.animate-fade-up {
+  animation: fadeSlideUp var(--transition-med) both;
+}
+
+.animate-pulse {
+  animation: pulse 1.5s ease infinite;
+}
+
+/* ─── Loading Skeleton ──────────────────────────────────────── */
+
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--bg-elevated) 25%,
+    var(--bg-surface) 50%,
+    var(--bg-elevated) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: var(--radius-sm);
+}
+
+/* ─── Spin ──────────────────────────────────────────────────── */
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.spin {
+  animation: spin 1s linear infinite;
+}
