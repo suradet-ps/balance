@@ -7,7 +7,8 @@
     "dev": "vite --port 1420 --strictPort",
     "build": "vue-tsc --noEmit && vite build",
     "preview": "vite preview",
-    "tauri": "tauri"
+    "tauri": "tauri",
+    "gen-icons": "node scripts/gen-icons.cjs"
   },
   "dependencies": {
     "@tauri-apps/api": "^2.10.1",
@@ -20,6 +21,7 @@
     "vue-echarts": "^7.0.3"
   },
   "devDependencies": {
+    "@resvg/resvg-js": "^2.6.2",
     "@tauri-apps/cli": "^2.10.1",
     "@types/node": "^25.6.0",
     "@vitejs/plugin-vue": "^5.2.4",
