@@ -54,12 +54,12 @@
 
 ### Prerequisites
 
-- [Node.js](https://nodejs.org/) ≥ 18
+- [Bun](https://bun.sh/) ≥ 1.0
 - [Rust](https://rustup.rs/) (stable)
 - [Tauri CLI](https://tauri.app/start/)
 
 ```bash
-npm install -g @tauri-apps/cli
+bun install -g @tauri-apps/cli
 ```
 
 ### Installation
@@ -70,27 +70,27 @@ git clone https://github.com/suradet-ps/balance.git
 cd balance
 
 # Install dependencies
-npm install
+bun install
 ```
 
 ### Development
 
 ```bash
 # Start dev server
-npm run tauri dev
+bun run tauri dev
 ```
 
 ### Production Build
 
 ```bash
-npm run tauri build
+bun run tauri build
 ```
 
 ### Generate Icons
 
 ```bash
 # Requires icon-master.svg in project root
-npm run gen-icons
+bun run gen-icons
 ```
 
 ## Project Structure
