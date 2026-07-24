@@ -57,8 +57,8 @@ jobs:
           fi
           echo "No inline hex colors found. Design system enforced."
 
-  cargo-audit:
-    name: Cargo Audit
+  cargo-deny:
+    name: Cargo Deny
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
@@ -69,13 +69,7 @@ jobs:
         with:
           toolchain: stable
 
-      - uses: swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4
+      - uses: EmbarkStudios/cargo-deny-action@3c6349835b2b7b196a839186cb8b78e02f7b5f25
         with:
-          workspaces: "./src-tauri -> target"
-
-      - name: Install cargo-audit
-        run: cargo install cargo-audit
-
-      - name: Run cargo audit
-        working-directory: src-tauri
-        run: cargo audit
+          command: check all
+          manifest-path: src-tauri/Cargo.toml
