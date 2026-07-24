@@ -2,7 +2,7 @@
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Balance",
   "version": "0.1.0",
-  "identifier": "rxdevman",
+  "identifier": "Balance",
   "build": {
     "beforeDevCommand": "bun run dev",
     "devUrl": "http://localhost:1420",

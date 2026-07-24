@@ -3,6 +3,7 @@
 //! Uses a global `OnceLock<RwLock<Option<MySqlPool>>>` so multiple Tauri
 //! commands can share the pool concurrently.
 
+use encryptman_keyring::Vault;
 use sqlx::mysql::{MySqlPool, MySqlPoolOptions};
 use std::sync::OnceLock;
 use std::time::Duration;
@@ -21,6 +22,29 @@ pub struct HosxpDbConfig {
     pub user: String,
     pub password: String,
     pub database: String,
+}
+
+#[allow(dead_code)]
+impl HosxpDbConfig {
+    pub fn encrypt(&self, vault: &Vault) -> Result<Self, String> {
+        Ok(Self {
+            host: vault.encrypt(&self.host).map_err(|e| e.to_string())?,
+            port: self.port,
+            user: vault.encrypt(&self.user).map_err(|e| e.to_string())?,
+            password: vault.encrypt(&self.password).map_err(|e| e.to_string())?,
+            database: vault.encrypt(&self.database).map_err(|e| e.to_string())?,
+        })
+    }
+
+    pub fn decrypt(&self, vault: &Vault) -> Result<Self, String> {
+        Ok(Self {
+            host: vault.decrypt(&self.host).map_err(|e| e.to_string())?,
+            port: self.port,
+            user: vault.decrypt(&self.user).map_err(|e| e.to_string())?,
+            password: vault.decrypt(&self.password).map_err(|e| e.to_string())?,
+            database: vault.decrypt(&self.database).map_err(|e| e.to_string())?,
+        })
+    }
 }
 
 /// Managed state wrapper — empty struct, commands use `with_pool()` instead.

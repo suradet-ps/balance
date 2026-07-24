@@ -3,6 +3,7 @@
 //! Uses `tiberius::Client` wrapped in `Arc<Mutex<Option<...>>>` stored as
 //! a Tauri managed state.
 
+use encryptman_keyring::Vault;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tiberius::{AuthMethod, Client, Config, EncryptionLevel};
@@ -18,6 +19,41 @@ pub struct InvsDbConfig {
     pub password: String,
     pub database: String,
     pub instance: Option<String>,
+}
+
+#[allow(dead_code)]
+impl InvsDbConfig {
+    pub fn encrypt(&self, vault: &Vault) -> Result<Self, String> {
+        Ok(Self {
+            host: vault.encrypt(&self.host).map_err(|e| e.to_string())?,
+            port: self.port,
+            user: vault.encrypt(&self.user).map_err(|e| e.to_string())?,
+            password: vault.encrypt(&self.password).map_err(|e| e.to_string())?,
+            database: vault.encrypt(&self.database).map_err(|e| e.to_string())?,
+            instance: self
+                .instance
+                .as_ref()
+                .map(|v| vault.encrypt(v))
+                .transpose()
+                .map_err(|e| e.to_string())?,
+        })
+    }
+
+    pub fn decrypt(&self, vault: &Vault) -> Result<Self, String> {
+        Ok(Self {
+            host: vault.decrypt(&self.host).map_err(|e| e.to_string())?,
+            port: self.port,
+            user: vault.decrypt(&self.user).map_err(|e| e.to_string())?,
+            password: vault.decrypt(&self.password).map_err(|e| e.to_string())?,
+            database: vault.decrypt(&self.database).map_err(|e| e.to_string())?,
+            instance: self
+                .instance
+                .as_ref()
+                .map(|v| vault.decrypt(v))
+                .transpose()
+                .map_err(|e| e.to_string())?,
+        })
+    }
 }
 
 pub struct InvsDbState(pub Arc<Mutex<Option<Client<Compat<TcpStream>>>>>);

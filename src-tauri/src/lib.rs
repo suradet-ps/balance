@@ -5,18 +5,24 @@
 
 mod hosxp;
 mod invs;
+mod settings;
 
 use hosxp::db::HosxpDbState;
 use invs::db::InvsDbState;
+use settings::VaultState;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    let vault = encryptman_keyring::Vault::new("balance")
+        .expect("failed to initialize OS keychain vault");
+
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
         .manage(HosxpDbState::new())
         .manage(InvsDbState(Arc::new(Mutex::new(None))))
+        .manage(VaultState(vault))
         .invoke_handler(tauri::generate_handler![
             // HOSxP (MySQL) commands
             hosxp::commands::hosxp_connect,
