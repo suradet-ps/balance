@@ -46,7 +46,7 @@
               </div>
               <div class="form-group form-group--half">
                 <label class="form-label">Port</label>
-                <input v-model.number="dbStore.hosxpConfig.port" class="input" type="number" placeholder="3306" />
+                <input v-model="dbStore.hosxpConfig.port" class="input" type="number" placeholder="3306" />
               </div>
               <div class="form-group form-group--half">
                 <label class="form-label">Database</label>
@@ -114,7 +114,7 @@
               </div>
               <div class="form-group form-group--half">
                 <label class="form-label">Port</label>
-                <input v-model.number="dbStore.invsConfig.port" class="input" type="number" placeholder="1433" />
+                <input v-model="dbStore.invsConfig.port" class="input" type="number" placeholder="1433" />
               </div>
               <div class="form-group form-group--half">
                 <label class="form-label">Named Instance</label>

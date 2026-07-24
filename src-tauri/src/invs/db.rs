@@ -14,7 +14,7 @@ use tokio_util::compat::{Compat, TokioAsyncWriteCompatExt};
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct InvsDbConfig {
     pub host: String,
-    pub port: u16,
+    pub port: String,
     pub user: String,
     pub password: String,
     pub database: String,
@@ -26,7 +26,7 @@ impl InvsDbConfig {
     pub fn encrypt(&self, vault: &Vault) -> Result<Self, String> {
         Ok(Self {
             host: vault.encrypt(&self.host).map_err(|e| e.to_string())?,
-            port: self.port,
+            port: vault.encrypt(&self.port).map_err(|e| e.to_string())?,
             user: vault.encrypt(&self.user).map_err(|e| e.to_string())?,
             password: vault.encrypt(&self.password).map_err(|e| e.to_string())?,
             database: vault.encrypt(&self.database).map_err(|e| e.to_string())?,
@@ -42,7 +42,7 @@ impl InvsDbConfig {
     pub fn decrypt(&self, vault: &Vault) -> Result<Self, String> {
         Ok(Self {
             host: vault.decrypt(&self.host).map_err(|e| e.to_string())?,
-            port: self.port,
+            port: vault.decrypt(&self.port).map_err(|e| e.to_string())?,
             user: vault.decrypt(&self.user).map_err(|e| e.to_string())?,
             password: vault.decrypt(&self.password).map_err(|e| e.to_string())?,
             database: vault.decrypt(&self.database).map_err(|e| e.to_string())?,
@@ -64,7 +64,8 @@ pub async fn connect(cfg: &InvsDbConfig) -> Result<Client<Compat<TcpStream>>, St
     let mut config = Config::new();
 
     config.host(&cfg.host);
-    config.port(cfg.port);
+    config
+        .port(cfg.port.parse().map_err(|e| format!("invalid port: {e}"))?);
     config.authentication(AuthMethod::sql_server(&cfg.user, &cfg.password));
     config.database(&cfg.database);
     config.encryption(EncryptionLevel::NotSupported);

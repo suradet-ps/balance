@@ -6,7 +6,7 @@ import { computed, ref } from 'vue';
 
 export interface HosxpDbConfig {
   host: string;
-  port: number;
+  port: string;
   user: string;
   password: string;
   database: string;
@@ -16,7 +16,7 @@ export interface HosxpDbConfig {
 
 export interface InvsDbConfig {
   host: string;
-  port: number;
+  port: string;
   user: string;
   password: string;
   database: string;
@@ -29,7 +29,7 @@ export const useDbConfigStore = defineStore('dbConfig', () => {
   // HOSxP state
   const hosxpConfig = ref<HosxpDbConfig>({
     host: 'localhost',
-    port: 3306,
+    port: '3306',
     user: '',
     password: '',
     database: 'hospdb',
@@ -41,7 +41,7 @@ export const useDbConfigStore = defineStore('dbConfig', () => {
   // INVS state
   const invsConfig = ref<InvsDbConfig>({
     host: 'localhost',
-    port: 1433,
+    port: '1433',
     user: '',
     password: '',
     database: 'INVS',
