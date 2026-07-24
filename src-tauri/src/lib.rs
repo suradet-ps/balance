@@ -24,6 +24,9 @@ pub fn run() {
         .manage(InvsDbState(Arc::new(Mutex::new(None))))
         .manage(VaultState(vault))
         .invoke_handler(tauri::generate_handler![
+            // Settings persistence
+            settings::save_settings,
+            settings::load_settings,
             // HOSxP (MySQL) commands
             hosxp::commands::hosxp_connect,
             hosxp::commands::hosxp_get_available_years,
