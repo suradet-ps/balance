@@ -81,13 +81,20 @@
 
             <div class="drawer-actions">
               <button class="btn btn-ghost" @click="close">ยกเลิก</button>
+              <button class="btn btn-secondary" :disabled="dbStore.hosxpConnecting || dbStore.saving" @click="saveHosxp">
+                <Save :size="14" />
+                บันทึก
+              </button>
               <button class="btn btn-primary" :disabled="dbStore.hosxpConnecting" @click="connectHosxp">
                 <span v-if="dbStore.hosxpConnecting" class="animate-pulse">กำลังเชื่อมต่อ…</span>
                 <template v-else>
                   <PlugZap :size="14" />
-                  ทดสอบ & บันทึก
+                  ทดสอบ
                 </template>
               </button>
+            </div>
+            <div v-if="dbStore.saveMessage" :class="['save-feedback', dbStore.saveMessage === 'บันทึกสำเร็จ' ? 'save-ok' : 'save-err']">
+              {{ dbStore.saveMessage }}
             </div>
           </div>
 
@@ -146,13 +153,20 @@
 
             <div class="drawer-actions">
               <button class="btn btn-ghost" @click="close">ยกเลิก</button>
+              <button class="btn btn-secondary" :disabled="dbStore.invsConnecting || dbStore.saving" @click="saveInvs">
+                <Save :size="14" />
+                บันทึก
+              </button>
               <button class="btn btn-primary" :disabled="dbStore.invsConnecting" @click="connectInvs">
                 <span v-if="dbStore.invsConnecting" class="animate-pulse">กำลังเชื่อมต่อ…</span>
                 <template v-else>
                   <PlugZap :size="14" />
-                  ทดสอบ & บันทึก
+                  ทดสอบ
                 </template>
               </button>
+            </div>
+            <div v-if="dbStore.saveMessage" :class="['save-feedback', dbStore.saveMessage === 'บันทึกสำเร็จ' ? 'save-ok' : 'save-err']">
+              {{ dbStore.saveMessage }}
             </div>
           </div>
         </div>
@@ -162,7 +176,7 @@
 </template>
 
 <script setup lang="ts">
-import { AlertTriangle, Database, Eye, EyeOff, PlugZap, Settings2, X } from 'lucide-vue-next';
+import { AlertTriangle, Database, Eye, EyeOff, PlugZap, Save, Settings2, X } from 'lucide-vue-next';
 import { ref } from 'vue';
 import { useDbConfigStore } from '../stores/dbConfig';
 
@@ -185,6 +199,14 @@ async function connectHosxp() {
 async function connectInvs() {
   const ok = await dbStore.connectInvs();
   if (ok) close();
+}
+
+async function saveHosxp() {
+  await dbStore.saveSettings();
+}
+
+async function saveInvs() {
+  await dbStore.saveSettings();
 }
 </script>
 
@@ -362,6 +384,24 @@ async function connectInvs() {
   justify-content: flex-end;
   padding-top: 12px;
   border-top: 1px solid var(--border-subtle);
+}
+
+.save-feedback {
+  font-size: 12px;
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  text-align: center;
+}
+
+.save-feedback.save-ok {
+  color: var(--green);
+  background: rgba(52, 199, 89, 0.1);
+}
+
+.save-feedback.save-err {
+  color: var(--red);
+  background: var(--red-subtle);
+  border: 1px solid rgba(224, 62, 62, 0.25);
 }
 
 /* Transitions */

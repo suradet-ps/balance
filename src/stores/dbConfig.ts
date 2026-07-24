@@ -12,8 +12,6 @@ export interface HosxpDbConfig {
   database: string;
 }
 
-const HOSXP_STORAGE_KEY = 'balance_hosxp_db_config';
-
 // ─── INVS (SQL Server) Config ──────────────────────────────────────────
 
 export interface InvsDbConfig {
@@ -24,8 +22,6 @@ export interface InvsDbConfig {
   database: string;
   instance: string;
 }
-
-const INVS_STORAGE_KEY = 'balance_invs_db_config';
 
 // ─── Combined Store ────────────────────────────────────────────────────
 
@@ -58,6 +54,10 @@ export const useDbConfigStore = defineStore('dbConfig', () => {
   const showSettings = ref(false);
   const activeTab = ref<'hosxp' | 'invs'>('hosxp');
 
+  // Save feedback
+  const saving = ref(false);
+  const saveMessage = ref<string | null>(null);
+
   // Computed
   const hosxpConfigured = computed(
     () => hosxpConfig.value.host.trim() !== '' && hosxpConfig.value.user.trim() !== '',
@@ -69,33 +69,12 @@ export const useDbConfigStore = defineStore('dbConfig', () => {
   const anyConnected = computed(() => hosxpConnected.value || invsConnected.value);
 
   // HOSxP methods
-  function loadHosxpFromStorage() {
-    try {
-      const raw = localStorage.getItem(HOSXP_STORAGE_KEY);
-      if (raw) {
-        const saved = JSON.parse(raw) as Partial<HosxpDbConfig>;
-        if (saved.host) hosxpConfig.value.host = saved.host;
-        if (saved.port) hosxpConfig.value.port = saved.port;
-        if (saved.user) hosxpConfig.value.user = saved.user;
-        if (saved.password) hosxpConfig.value.password = saved.password;
-        if (saved.database) hosxpConfig.value.database = saved.database;
-      }
-    } catch {
-      /* ignore */
-    }
-  }
-
-  function saveHosxpToStorage() {
-    localStorage.setItem(HOSXP_STORAGE_KEY, JSON.stringify(hosxpConfig.value));
-  }
-
   async function connectHosxp(): Promise<boolean> {
     hosxpConnecting.value = true;
     hosxpError.value = null;
     try {
       await invoke('hosxp_connect', { config: hosxpConfig.value });
       hosxpConnected.value = true;
-      saveHosxpToStorage();
       return true;
     } catch (e) {
       hosxpConnected.value = false;
@@ -107,34 +86,12 @@ export const useDbConfigStore = defineStore('dbConfig', () => {
   }
 
   // INVS methods
-  function loadInvsFromStorage() {
-    try {
-      const raw = localStorage.getItem(INVS_STORAGE_KEY);
-      if (raw) {
-        const saved = JSON.parse(raw) as Partial<InvsDbConfig>;
-        if (saved.host) invsConfig.value.host = saved.host;
-        if (saved.port) invsConfig.value.port = saved.port;
-        if (saved.user) invsConfig.value.user = saved.user;
-        if (saved.password) invsConfig.value.password = saved.password;
-        if (saved.database) invsConfig.value.database = saved.database;
-        if (saved.instance) invsConfig.value.instance = saved.instance;
-      }
-    } catch {
-      /* ignore */
-    }
-  }
-
-  function saveInvsToStorage() {
-    localStorage.setItem(INVS_STORAGE_KEY, JSON.stringify(invsConfig.value));
-  }
-
   async function connectInvs(): Promise<boolean> {
     invsConnecting.value = true;
     invsError.value = null;
     try {
       await invoke('invs_connect', { cfg: invsConfig.value });
       invsConnected.value = true;
-      saveInvsToStorage();
       return true;
     } catch (e) {
       invsConnected.value = false;
@@ -145,10 +102,36 @@ export const useDbConfigStore = defineStore('dbConfig', () => {
     }
   }
 
+  // Unified save — persists both configs via encrypted Tauri settings
+  async function saveSettings(): Promise<boolean> {
+    saving.value = true;
+    saveMessage.value = null;
+    try {
+      await invoke('save_settings', {
+        hosxp: hosxpConfig.value,
+        invs: invsConfig.value.user ? invsConfig.value : null,
+      });
+      saveMessage.value = 'บันทึกสำเร็จ';
+      setTimeout(() => { saveMessage.value = null; }, 3000);
+      return true;
+    } catch (e) {
+      saveMessage.value = String(e);
+      setTimeout(() => { saveMessage.value = null; }, 5000);
+      return false;
+    } finally {
+      saving.value = false;
+    }
+  }
+
   // Init
   async function initFromStorage() {
-    loadHosxpFromStorage();
-    loadInvsFromStorage();
+    try {
+      const settings = await invoke<{ hosxp: HosxpDbConfig; invs: InvsDbConfig | null }>('load_settings');
+      hosxpConfig.value = settings.hosxp;
+      if (settings.invs) invsConfig.value = settings.invs;
+    } catch {
+      /* no saved settings yet — use defaults */
+    }
 
     if (hosxpConfig.value.user) {
       connectHosxp().catch(() => {});
@@ -173,6 +156,10 @@ export const useDbConfigStore = defineStore('dbConfig', () => {
     invsError,
     invsConfigured,
     connectInvs,
+    // Save
+    saving,
+    saveMessage,
+    saveSettings,
     // Combined
     showSettings,
     activeTab,
