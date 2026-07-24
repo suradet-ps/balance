@@ -108,7 +108,7 @@ function onYearChange(e: Event) {
   font-family: var(--font-display);
   font-size: 16px;
   font-weight: 700;
-  color: #ffffff;
+  color: var(--text-on-primary);
   letter-spacing: -0.5px;
 }
 
@@ -142,7 +142,7 @@ function onYearChange(e: Event) {
   border: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: var(--radius-lg);
   padding: 6px 28px 6px 10px;
-  color: #ffffff;
+  color: var(--text-on-primary);
   font-family: var(--font-body);
   font-size: 13px;
   font-weight: 600;
@@ -167,12 +167,12 @@ function onYearChange(e: Event) {
 
 .badge-connected {
   background: rgba(20, 158, 97, 0.15);
-  color: #4ade80;
+  color: var(--green-light);
 }
 
 .badge-disconnected {
   background: rgba(224, 62, 62, 0.12);
-  color: #f87171;
+  color: var(--red-light);
 }
 
 .status-dot {
@@ -182,8 +182,8 @@ function onYearChange(e: Event) {
   display: inline-block;
 }
 
-.dot-green { background: #4ade80; }
-.dot-red { background: #f87171; }
+.dot-green { background: var(--green-light); }
+.dot-red { background: var(--red-light); }
 
 /* Settings button */
 .settings-btn {
@@ -196,6 +196,6 @@ function onYearChange(e: Event) {
 .settings-btn:hover {
   background: rgba(255, 255, 255, 0.1);
   border-color: rgba(255, 255, 255, 0.35);
-  color: #ffffff;
+  color: var(--text-on-primary);
 }
 </style>

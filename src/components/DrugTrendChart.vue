@@ -77,11 +77,22 @@ function getTotal(d: ChartData): number {
   return d.total_qty ?? d.total_value ?? 0;
 }
 
-const barColor = computed(() => (props.side === 'hosxp' ? '#7132f5' : '#149e61'));
-const barColorLight = computed(() =>
-  props.side === 'hosxp' ? 'rgba(113,50,245,0.3)' : 'rgba(20,158,97,0.3)',
+function cssVar(name: string): string {
+  return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+}
+
+const barColor = computed(() =>
+  props.side === 'hosxp' ? cssVar('--chart-hosxp') : cssVar('--chart-invs'),
 );
-const lineColor = computed(() => (props.side === 'hosxp' ? '#5741d8' : '#026b3f'));
+const barColorLight = computed(() =>
+  props.side === 'hosxp' ? `rgba(113,50,245,0.3)` : `rgba(20,158,97,0.3)`,
+);
+const lineColor = computed(() =>
+  props.side === 'hosxp' ? cssVar('--chart-hosxp-line') : cssVar('--chart-invs-line'),
+);
+const tooltipBg = computed(() =>
+  props.side === 'hosxp' ? cssVar('--chart-hosxp-tooltip-bg') : cssVar('--chart-invs-tooltip-bg'),
+);
 
 const chartOption = computed(() => {
   if (!props.data) return {};
@@ -104,10 +115,14 @@ const chartOption = computed(() => {
     grid: { left: 16, right: 16, top: 24, bottom: 36, containLabel: true },
     tooltip: {
       trigger: 'axis',
-      backgroundColor: props.side === 'hosxp' ? '#1a1040' : '#1a2e1a',
+      backgroundColor: tooltipBg.value,
       borderColor: barColor.value,
       borderWidth: 1,
-      textStyle: { color: '#ffffff', fontFamily: 'IBM Plex Sans, sans-serif', fontSize: 12 },
+      textStyle: {
+        color: cssVar('--text-on-primary'),
+        fontFamily: 'IBM Plex Sans, sans-serif',
+        fontSize: 12,
+      },
       formatter(params: { name: string; seriesName: string; value: number }[]) {
         const bar = params.find(
           (p) => p.seriesName === (props.side === 'hosxp' ? 'จำนวนจ่าย' : 'มูลค่ารายเดือน'),
@@ -121,20 +136,28 @@ const chartOption = computed(() => {
     legend: {
       bottom: 0,
       right: 'center',
-      textStyle: { color: '#686b82', fontFamily: 'IBM Plex Sans, sans-serif', fontSize: 11 },
+      textStyle: {
+        color: cssVar('--text-secondary'),
+        fontFamily: 'IBM Plex Sans, sans-serif',
+        fontSize: 11,
+      },
     },
     xAxis: {
       type: 'category',
       data: months,
       axisLine: { lineStyle: { color: 'rgba(104,107,130,0.15)' } },
-      axisLabel: { color: '#686b82', fontFamily: 'IBM Plex Sans, sans-serif', fontSize: 11 },
+      axisLabel: {
+        color: cssVar('--text-secondary'),
+        fontFamily: 'IBM Plex Sans, sans-serif',
+        fontSize: 11,
+      },
       axisTick: { show: false },
     },
     yAxis: {
       type: 'value',
       splitLine: { lineStyle: { color: 'rgba(104,107,130,0.08)', type: 'dashed' } },
       axisLabel: {
-        color: '#9497a9',
+        color: cssVar('--text-muted'),
         fontFamily: 'IBM Plex Sans, sans-serif',
         fontSize: 11,
         formatter: (v: number) => {

@@ -37,11 +37,17 @@
   --chart-hosxp: #7132f5;
   --chart-hosxp-light: rgba(113, 50, 245, 0.18);
   --chart-hosxp-line: #5741d8;
+  --chart-hosxp-tooltip-bg: #1a1040;
 
   /* Chart — INVS side (green family) */
   --chart-invs: #149e61;
   --chart-invs-light: rgba(20, 158, 97, 0.18);
   --chart-invs-line: #026b3f;
+  --chart-invs-tooltip-bg: #1a2e1a;
+
+  /* Status light variants */
+  --green-light: #4ade80;
+  --red-light: #f87171;
 
   /* Borders & Shadows */
   --border-subtle: rgba(104, 107, 130, 0.12);
