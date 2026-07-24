@@ -1,7 +1,6 @@
 //! HOSxP (MySQL) Tauri command handlers.
 
 use crate::hosxp::db::{HosxpDbConfig, init_pool, with_pool};
-use crate::settings::VaultState;
 use serde::{Deserialize, Serialize};
 use sqlx::Row;
 use std::collections::HashMap;
@@ -84,11 +83,7 @@ fn col_f64(row: &sqlx::mysql::MySqlRow, col: &str) -> f64 {
 
 /// Connect to HOSxP MySQL database.
 #[tauri::command]
-pub async fn hosxp_connect(
-    config: HosxpDbConfig,
-    vault: tauri::State<'_, VaultState>,
-) -> Result<(), String> {
-    let config = config.decrypt(&vault.0)?;
+pub async fn hosxp_connect(config: HosxpDbConfig) -> Result<(), String> {
     init_pool(config).await
 }
 

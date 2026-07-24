@@ -1,7 +1,6 @@
 //! INVS (SQL Server) Tauri command handlers.
 
 use crate::invs::db::{connect, InvsDbConfig, InvsDbState};
-use crate::settings::VaultState;
 use futures::TryStreamExt;
 use serde::{Deserialize, Serialize};
 use tiberius::{QueryItem, Row};
@@ -87,10 +86,8 @@ fn get_i32(row: &Row, idx: usize) -> i32 {
 #[tauri::command]
 pub async fn invs_connect(
     cfg: InvsDbConfig,
-    vault: tauri::State<'_, VaultState>,
     state: tauri::State<'_, InvsDbState>,
 ) -> Result<(), String> {
-    let cfg = cfg.decrypt(&vault.0)?;
     let client = connect(&cfg).await?;
     let mut guard = state.0.lock().await;
     *guard = Some(client);
