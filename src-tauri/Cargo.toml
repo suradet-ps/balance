@@ -3,6 +3,7 @@ name = "balance"
 version = "0.1.0"
 edition = "2024"
 description = "Balance — Combined HOSxP & INVS drug dashboard"
+license = "MIT"
 
 [lib]
 name = "balance_lib"
