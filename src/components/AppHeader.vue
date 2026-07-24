@@ -42,26 +42,30 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
-import { Settings } from 'lucide-vue-next'
-import { useDbConfigStore } from '../stores/dbConfig'
-import { useDashboardStore } from '../stores/dashboard'
-import logoUrl from '../assets/logo.svg'
+import { Settings } from 'lucide-vue-next';
+import { computed } from 'vue';
+import logoUrl from '../assets/logo.svg';
+import { useDashboardStore } from '../stores/dashboard';
+import { useDbConfigStore } from '../stores/dbConfig';
 
-defineEmits<{ openSettings: [] }>()
+defineEmits<{ openSettings: [] }>();
 
-const dbStore = useDbConfigStore()
-const dashStore = useDashboardStore()
+const dbStore = useDbConfigStore();
+const dashStore = useDashboardStore();
 
 const mergedYears = computed(() => {
-  const all = new Set([...dbStore.hosxpConnected ? [] : [], ...dashStore.hosxpYears, ...dashStore.invsYears])
-  const arr = Array.from(all).sort((a, b) => b - a)
-  return arr.length > 0 ? arr : [dashStore.selectedYear]
-})
+  const all = new Set([
+    ...(dbStore.hosxpConnected ? [] : []),
+    ...dashStore.hosxpYears,
+    ...dashStore.invsYears,
+  ]);
+  const arr = Array.from(all).sort((a, b) => b - a);
+  return arr.length > 0 ? arr : [dashStore.selectedYear];
+});
 
 function onYearChange(e: Event) {
-  const year = parseInt((e.target as HTMLSelectElement).value, 10)
-  dashStore.setYear(year)
+  const year = parseInt((e.target as HTMLSelectElement).value, 10);
+  dashStore.setYear(year);
 }
 </script>
 

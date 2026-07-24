@@ -8,7 +8,14 @@
     "build": "vue-tsc --noEmit && vite build",
     "preview": "vite preview",
     "tauri": "tauri",
-    "gen-icons": "node scripts/gen-icons.cjs"
+    "gen-icons": "node scripts/gen-icons.cjs",
+    "fmt": "biome format --write .",
+    "fmt:check": "biome format .",
+    "lint": "biome lint .",
+    "lint:fix": "biome lint --write .",
+    "check": "biome check .",
+    "check:fix": "biome check --write .",
+    "ci": "biome ci ."
   },
   "dependencies": {
     "@tauri-apps/api": "^2.10.1",
@@ -21,6 +28,7 @@
     "vue-echarts": "^7.0.3"
   },
   "devDependencies": {
+    "@biomejs/biome": "^2.5.5",
     "@resvg/resvg-js": "^2.6.2",
     "@tauri-apps/cli": "^2.10.1",
     "@types/node": "^25.6.0",

@@ -39,80 +39,82 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch } from 'vue'
-import { Search, X } from 'lucide-vue-next'
-import { onClickOutside } from '../composables/onClickOutside'
+import { Search, X } from 'lucide-vue-next';
+import { ref, watch } from 'vue';
+import { onClickOutside } from '../composables/onClickOutside';
 
-type DrugResult = { icode?: string; working_code?: string; name?: string; drug_name?: string }
+type DrugResult = { icode?: string; working_code?: string; name?: string; drug_name?: string };
 
 const props = defineProps<{
-  side: 'hosxp' | 'invs'
-  placeholder?: string
-  searchFn: (q: string) => Promise<DrugResult[]>
-}>()
+  side: 'hosxp' | 'invs';
+  placeholder?: string;
+  searchFn: (q: string) => Promise<DrugResult[]>;
+}>();
 
-const emit = defineEmits<{ select: [code: string] }>()
+const emit = defineEmits<{ select: [code: string] }>();
 
-const query = ref('')
-const results = ref<DrugResult[]>([])
-const loading = ref(false)
-const showDropdown = ref(false)
-const cursor = ref(0)
-const rootRef = ref<HTMLElement | null>(null)
+const query = ref('');
+const results = ref<DrugResult[]>([]);
+const loading = ref(false);
+const showDropdown = ref(false);
+const cursor = ref(0);
+const rootRef = ref<HTMLElement | null>(null);
 
-onClickOutside(rootRef, () => close())
+onClickOutside(rootRef, () => close());
 
-let debounceTimer: ReturnType<typeof setTimeout> | null = null
+let debounceTimer: ReturnType<typeof setTimeout> | null = null;
 
 function getKey(drug: DrugResult): string {
-  return drug.icode ?? drug.working_code ?? ''
+  return drug.icode ?? drug.working_code ?? '';
 }
 
 function getCode(drug: DrugResult): string {
-  return drug.icode ?? drug.working_code ?? ''
+  return drug.icode ?? drug.working_code ?? '';
 }
 
 function getName(drug: DrugResult): string {
-  return drug.name ?? drug.drug_name ?? '—'
+  return drug.name ?? drug.drug_name ?? '—';
 }
 
 watch(query, (val) => {
-  cursor.value = 0
-  if (debounceTimer) clearTimeout(debounceTimer)
+  cursor.value = 0;
+  if (debounceTimer) clearTimeout(debounceTimer);
   if (!val.trim()) {
-    results.value = []
-    showDropdown.value = false
-    return
+    results.value = [];
+    showDropdown.value = false;
+    return;
   }
   debounceTimer = setTimeout(async () => {
-    loading.value = true
-    results.value = await props.searchFn(val.trim())
-    showDropdown.value = true
-    loading.value = false
-  }, 300)
-})
+    loading.value = true;
+    results.value = await props.searchFn(val.trim());
+    showDropdown.value = true;
+    loading.value = false;
+  }, 300);
+});
 
 function select(drug: DrugResult) {
-  const code = getCode(drug)
-  query.value = `${code} — ${getName(drug)}`
-  emit('select', code)
-  close()
+  const code = getCode(drug);
+  query.value = `${code} — ${getName(drug)}`;
+  emit('select', code);
+  close();
 }
 
 function selectCurrent() {
-  if (results.value[cursor.value]) select(results.value[cursor.value])
+  if (results.value[cursor.value]) select(results.value[cursor.value]);
 }
 
 function moveCursor(dir: number) {
-  cursor.value = Math.max(0, Math.min(results.value.length - 1, cursor.value + dir))
+  cursor.value = Math.max(0, Math.min(results.value.length - 1, cursor.value + dir));
 }
 
-function close() { showDropdown.value = false }
+function close() {
+  showDropdown.value = false;
+}
 
 function clear() {
-  query.value = ''
-  results.value = []
-  showDropdown.value = false
+  query.value = '';
+  results.value = [];
+  showDropdown.value = false;
 }
 </script>
 

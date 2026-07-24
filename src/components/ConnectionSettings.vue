@@ -162,27 +162,29 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
-import { Settings2, X, Eye, EyeOff, AlertTriangle, PlugZap, Database } from 'lucide-vue-next'
-import { useDbConfigStore } from '../stores/dbConfig'
+import { AlertTriangle, Database, Eye, EyeOff, PlugZap, Settings2, X } from 'lucide-vue-next';
+import { ref } from 'vue';
+import { useDbConfigStore } from '../stores/dbConfig';
 
-defineProps<{ visible: boolean }>()
-const emit = defineEmits<{ close: [] }>()
+defineProps<{ visible: boolean }>();
+const emit = defineEmits<{ close: [] }>();
 
-const dbStore = useDbConfigStore()
-const showPasswordHosxp = ref(false)
-const showPasswordInvs = ref(false)
+const dbStore = useDbConfigStore();
+const showPasswordHosxp = ref(false);
+const showPasswordInvs = ref(false);
 
-function close() { emit('close') }
+function close() {
+  emit('close');
+}
 
 async function connectHosxp() {
-  const ok = await dbStore.connectHosxp()
-  if (ok) close()
+  const ok = await dbStore.connectHosxp();
+  if (ok) close();
 }
 
 async function connectInvs() {
-  const ok = await dbStore.connectInvs()
-  if (ok) close()
+  const ok = await dbStore.connectInvs();
+  if (ok) close();
 }
 </script>
 

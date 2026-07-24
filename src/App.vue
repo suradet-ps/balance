@@ -78,85 +78,97 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue'
-import { AlertTriangle, PlugZap, X } from 'lucide-vue-next'
-import { useDbConfigStore } from './stores/dbConfig'
-import { useDashboardStore } from './stores/dashboard'
-import { useHosxpData } from './composables/useHosxpData'
-import { useInvsData } from './composables/useInvsData'
+import { AlertTriangle, PlugZap, X } from 'lucide-vue-next';
+import { onMounted, ref, watch } from 'vue';
+import AppHeader from './components/AppHeader.vue';
+import ConnectionSettings from './components/ConnectionSettings.vue';
+import DrugSearchPanel from './components/DrugSearchPanel.vue';
+import DrugTrendChart from './components/DrugTrendChart.vue';
+import SummaryKpiBar from './components/SummaryKpiBar.vue';
+import { useHosxpData } from './composables/useHosxpData';
+import { useInvsData } from './composables/useInvsData';
+import { useDashboardStore } from './stores/dashboard';
+import { useDbConfigStore } from './stores/dbConfig';
 
-import AppHeader from './components/AppHeader.vue'
-import ConnectionSettings from './components/ConnectionSettings.vue'
-import DrugSearchPanel from './components/DrugSearchPanel.vue'
-import DrugTrendChart from './components/DrugTrendChart.vue'
-import SummaryKpiBar from './components/SummaryKpiBar.vue'
+const dbStore = useDbConfigStore();
+const dashStore = useDashboardStore();
+const hosxp = useHosxpData();
+const invs = useInvsData();
 
-const dbStore = useDbConfigStore()
-const dashStore = useDashboardStore()
-const hosxp = useHosxpData()
-const invs = useInvsData()
-
-const showSettings = ref(false)
+const showSettings = ref(false);
 
 // Search wrappers
-async function hosxpSearch(q: string) { return hosxp.searchDrugs(q) }
-async function invsSearch(q: string) { return invs.searchDrugs(q) }
+async function hosxpSearch(q: string) {
+  return hosxp.searchDrugs(q);
+}
+async function invsSearch(q: string) {
+  return invs.searchDrugs(q);
+}
 
 // Drug selection handlers
 async function onHosxpSelect(code: string) {
-  dashStore.selectHosxpDrug(code)
-  await hosxp.fetchDrugMonthly(dashStore.selectedYear, code)
+  dashStore.selectHosxpDrug(code);
+  await hosxp.fetchDrugMonthly(dashStore.selectedYear, code);
 }
 
 async function onInvsSelect(code: string) {
-  dashStore.selectInvsDrug(code)
-  await invs.fetchDrugMonthlyValue(dashStore.selectedYear, code)
+  dashStore.selectInvsDrug(code);
+  await invs.fetchDrugMonthlyValue(dashStore.selectedYear, code);
 }
 
 // Refresh all data for current year
 async function refreshAll() {
-  dashStore.loading = true
-  dashStore.error = null
+  dashStore.loading = true;
+  dashStore.error = null;
   try {
-    const promises: Promise<unknown>[] = []
-    if (dbStore.hosxpConnected) promises.push(hosxp.refreshAll(dashStore.selectedYear))
-    if (dbStore.invsConnected) promises.push(invs.refreshAll(dashStore.selectedYear))
-    await Promise.all(promises)
+    const promises: Promise<unknown>[] = [];
+    if (dbStore.hosxpConnected) promises.push(hosxp.refreshAll(dashStore.selectedYear));
+    if (dbStore.invsConnected) promises.push(invs.refreshAll(dashStore.selectedYear));
+    await Promise.all(promises);
   } catch (e) {
-    dashStore.error = String(e)
+    dashStore.error = String(e);
   } finally {
-    dashStore.loading = false
+    dashStore.loading = false;
   }
 }
 
 // Watch connection state → fetch years + data
-watch(() => dbStore.hosxpConnected, async (connected) => {
-  if (connected) {
-    const years = await hosxp.fetchAvailableYears()
-    if (years.length && !years.includes(dashStore.selectedYear)) {
-      dashStore.selectedYear = years[0]
+watch(
+  () => dbStore.hosxpConnected,
+  async (connected) => {
+    if (connected) {
+      const years = await hosxp.fetchAvailableYears();
+      if (years.length && !years.includes(dashStore.selectedYear)) {
+        dashStore.selectedYear = years[0];
+      }
     }
-  }
-})
+  },
+);
 
-watch(() => dbStore.invsConnected, async (connected) => {
-  if (connected) {
-    const years = await invs.fetchAvailableYears()
-    if (years.length && !years.includes(dashStore.selectedYear)) {
-      dashStore.selectedYear = years[0]
+watch(
+  () => dbStore.invsConnected,
+  async (connected) => {
+    if (connected) {
+      const years = await invs.fetchAvailableYears();
+      if (years.length && !years.includes(dashStore.selectedYear)) {
+        dashStore.selectedYear = years[0];
+      }
+      await invs.fetchYearSummary(dashStore.selectedYear);
     }
-    await invs.fetchYearSummary(dashStore.selectedYear)
-  }
-})
+  },
+);
 
 // Watch year change → reload all
-watch(() => dashStore.selectedYear, () => refreshAll())
+watch(
+  () => dashStore.selectedYear,
+  () => refreshAll(),
+);
 
 onMounted(async () => {
-  await dbStore.initFromStorage()
+  await dbStore.initFromStorage();
   // Small delay to let connections attempt
-  setTimeout(() => refreshAll(), 500)
-})
+  setTimeout(() => refreshAll(), 500);
+});
 </script>
 
 <style scoped>

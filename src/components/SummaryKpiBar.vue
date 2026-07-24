@@ -49,13 +49,13 @@
 </template>
 
 <script setup lang="ts">
-import { Pill, Banknote, Package } from 'lucide-vue-next'
-import { useDbConfigStore } from '../stores/dbConfig'
-import { useDashboardStore } from '../stores/dashboard'
-import { formatBaht } from '../utils/dateUtils'
+import { Banknote, Package, Pill } from 'lucide-vue-next';
+import { useDashboardStore } from '../stores/dashboard';
+import { useDbConfigStore } from '../stores/dbConfig';
+import { formatBaht } from '../utils/dateUtils';
 
-const dbStore = useDbConfigStore()
-const dashStore = useDashboardStore()
+const dbStore = useDbConfigStore();
+const dashStore = useDashboardStore();
 </script>
 
 <style scoped>
