@@ -112,11 +112,15 @@ export const useDbConfigStore = defineStore('dbConfig', () => {
         invs: invsConfig.value.user ? invsConfig.value : null,
       });
       saveMessage.value = 'บันทึกสำเร็จ';
-      setTimeout(() => { saveMessage.value = null; }, 3000);
+      setTimeout(() => {
+        saveMessage.value = null;
+      }, 3000);
       return true;
     } catch (e) {
       saveMessage.value = String(e);
-      setTimeout(() => { saveMessage.value = null; }, 5000);
+      setTimeout(() => {
+        saveMessage.value = null;
+      }, 5000);
       return false;
     } finally {
       saving.value = false;
@@ -126,7 +130,9 @@ export const useDbConfigStore = defineStore('dbConfig', () => {
   // Init
   async function initFromStorage() {
     try {
-      const settings = await invoke<{ hosxp: HosxpDbConfig; invs: InvsDbConfig | null }>('load_settings');
+      const settings = await invoke<{ hosxp: HosxpDbConfig; invs: InvsDbConfig | null }>(
+        'load_settings',
+      );
       hosxpConfig.value = settings.hosxp;
       if (settings.invs) invsConfig.value = settings.invs;
     } catch {
