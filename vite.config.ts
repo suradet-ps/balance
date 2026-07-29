@@ -26,5 +26,16 @@ export default defineConfig({
     target: process.env.TAURI_ENV_PLATFORM == 'windows' ? 'chrome105' : 'safari13',
     minify: !process.env.TAURI_ENV_DEBUG ? 'esbuild' : false,
     sourcemap: !!process.env.TAURI_ENV_DEBUG,
+    chunkSizeWarningLimit: 600,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'echarts': ['echarts/core', 'echarts/renderers'],
+          'echarts-charts': ['echarts/charts', 'echarts/components'],
+          'vue-echarts': ['vue-echarts'],
+          'vendor-vue': ['vue', 'pinia'],
+        },
+      },
+    },
   },
 })
