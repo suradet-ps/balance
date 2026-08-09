@@ -19,45 +19,55 @@
 - Side-by-side comparison of HOSxP (quantity) and INVS (value)
 - Independent drug search using HOSxP `icode` or INVS `working_code`
 - Thai fiscal year selection with automatic date range calculation
-- Interactive bar + line trend charts powered by Apache ECharts
+- Interactive bar + line trend charts rendered on canvas (custom Rust renderer)
+- Encrypted connection settings stored in the OS keyring
 - Cross-platform support: Windows, macOS, and Linux
 
 ## Getting Started
 
 ### Prerequisites
 
-- [Bun](https://bun.sh/) >= 1.0
-- [Rust](https://rustup.rs/) (stable)
-- [Tauri CLI](https://tauri.app/start/)
+- [Rust](https://rustup.rs/) (stable) with the `wasm32-unknown-unknown` target
+- [Trunk](https://trunkrs.dev/) — `cargo install trunk --locked`
+- [Tauri CLI](https://tauri.app/start/) — `cargo install tauri-cli --locked`
 
 ### Installation
 
 ```bash
 git clone https://github.com/suradet-ps/balance.git
 cd balance
-bun install
+rustup target add wasm32-unknown-unknown
 ```
 
 ### Development
 
 ```bash
-bun run tauri dev
+cargo tauri dev
 ```
+
+(`trunk serve` runs automatically via `beforeDevCommand` in `src-tauri/tauri.conf.json`.)
 
 ### Production Build
 
 ```bash
-bun run tauri build
+cargo tauri build
+```
+
+### Frontend Only
+
+```bash
+trunk serve --config src/Trunk.toml
 ```
 
 ## Tech Stack
 
 | Layer | Technology |
 |-------|-----------|
-| Framework | [Tauri 2](https://tauri.app/) |
-| Frontend | [Vue 3](https://vuejs.org/) + [TypeScript](https://www.typescriptlang.org/) |
-| Build | [Vite 6](https://vitejs.dev/) |
-| Backend | [Rust](https://www.rust-lang.org/) |
+| Desktop shell | [Tauri 2](https://tauri.app/) |
+| Frontend | [Leptos 0.8](https://leptos.dev/) (Rust CSR, compiled to wasm32) |
+| Frontend build | [Trunk](https://trunkrs.dev/) |
+| Backend | Rust — [sqlx](https://github.com/launchbadge/sqlx) (MySQL/HOSxP), [tiberius](https://github.com/prisma/tiberius) (SQL Server/INVS) |
+| Settings | [encryptman-keyring](https://github.com/suradet-ps/encryptman-keyring) (encrypted, OS keychain-backed) |
 
 ## Roadmap
 
