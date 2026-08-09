@@ -83,7 +83,7 @@
 .drug-code {
   font-size: 12px;
   font-weight: 600;
-  color: var(--kraken-purple);
+  color: var(--primary);
 }
 
 .drug-name {

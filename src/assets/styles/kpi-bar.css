@@ -39,8 +39,8 @@
 }
 
 .kpi-icon--hosxp {
-  background: var(--kraken-purple-subtle);
-  color: var(--kraken-purple);
+  background: var(--primary-subtle);
+  color: var(--primary);
 }
 
 .kpi-icon--invs {
@@ -72,7 +72,7 @@
   white-space: nowrap;
 }
 
-.value-hosxp { color: var(--kraken-purple); }
+.value-hosxp { color: var(--primary); }
 .value-invs { color: var(--green); }
 .kpi-na { color: var(--text-muted); }
 

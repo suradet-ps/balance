@@ -74,10 +74,10 @@ jobs:
         run: |
           violations=$(grep -rnE '#[0-9a-fA-F]{6}[^0-9a-fA-F]|#[0-9a-fA-F]{3}[^0-9a-fA-F]' src/assets \
             --include='*.css' \
-            --exclude='kraken-theme.css' \
+            --exclude='theme.css' \
             || true)
           if [ -n "$violations" ]; then
-            echo "::error::Inline hex colors found outside kraken-theme.css. Route all colors through CSS tokens."
+            echo "::error::Inline hex colors found outside theme.css. Route all colors through CSS tokens."
             echo "$violations"
             exit 1
           fi

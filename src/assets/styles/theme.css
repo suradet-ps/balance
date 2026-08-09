@@ -1,13 +1,17 @@
 /* ============================================================
-   Kraken-Inspired Theme — Balance
+   Balance Design Tokens
+   ------------------------------------------------------------
+   Single source of truth for all colors, fonts, radii and
+   shadows.  UI stylesheets must reference these tokens only —
+   no raw hex values outside this file (enforced by CI).
    ============================================================ */
 
 :root {
-  /* Primary — Kraken Purple */
-  --kraken-purple: #7132f5;
-  --kraken-purple-dark: #5741d8;
-  --kraken-purple-deep: #5b1ecf;
-  --kraken-purple-subtle: rgba(133, 91, 251, 0.16);
+  /* Primary — Balance Purple */
+  --primary: #7132f5;
+  --primary-dark: #5741d8;
+  --primary-deep: #5b1ecf;
+  --primary-subtle: rgba(133, 91, 251, 0.16);
 
   /* Neutral */
   --cool-gray: #686b82;
@@ -138,12 +142,12 @@ body {
 }
 
 .btn-primary {
-  background: var(--kraken-purple);
+  background: var(--primary);
   color: var(--text-on-primary);
 }
 
 .btn-primary:hover {
-  background: var(--kraken-purple-dark);
+  background: var(--primary-dark);
 }
 
 .btn-ghost {
@@ -178,7 +182,7 @@ body {
 }
 
 .btn-primary:hover:not(:disabled) {
-  background: var(--kraken-purple-dark);
+  background: var(--primary-dark);
 }
 
 /* ─── Input ─────────────────────────────────────────────────── */
@@ -199,8 +203,8 @@ body {
 }
 
 .input:focus {
-  border-color: var(--kraken-purple);
-  box-shadow: 0 0 0 3px var(--kraken-purple-subtle);
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--primary-subtle);
 }
 
 .input::placeholder {

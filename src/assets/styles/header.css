@@ -95,7 +95,7 @@
 
 .year-selector select:focus {
   outline: none;
-  border-color: var(--kraken-purple);
+  border-color: var(--primary);
 }
 
 /* Badges (header-only variants — scoped to the dark header) */

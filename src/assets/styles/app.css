@@ -55,7 +55,7 @@
   flex-shrink: 0;
 }
 
-.dot-purple { background: var(--kraken-purple); }
+.dot-purple { background: var(--primary); }
 .dot-green { background: var(--green); }
 
 .panel-divider {
@@ -95,9 +95,9 @@
 }
 
 .no-conn-banner {
-  background: var(--kraken-purple-subtle);
+  background: var(--primary-subtle);
   border-bottom: 1px solid rgba(113, 50, 245, 0.2);
-  color: var(--kraken-purple-dark);
+  color: var(--primary-dark);
   font-size: 13px;
   padding: 7px 20px;
   display: flex;
@@ -110,7 +110,7 @@
   background: transparent;
   border: none;
   cursor: pointer;
-  color: var(--kraken-purple);
+  color: var(--primary);
   font-family: var(--font-body);
   font-size: 13px;
   font-weight: 600;
