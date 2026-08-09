@@ -69,12 +69,10 @@ trunk serve --config src/Trunk.toml
 | Backend | Rust — [sqlx](https://github.com/launchbadge/sqlx) (MySQL/HOSxP), [tiberius](https://github.com/prisma/tiberius) (SQL Server/INVS) |
 | Settings | [encryptman-keyring](https://github.com/suradet-ps/encryptman-keyring) (encrypted, OS keychain-backed) |
 
-## Roadmap
+## Documentation
 
-- [ ] Drug name mapping between `icode` <-> `working_code`
-- [ ] Export to Excel / PDF
-- [ ] Multi-year trend comparison
-- [ ] Alert on significant discrepancies
+- [ROADMAP.md](docs/ROADMAP.md) — where the product is going, phase by phase
+- [DESIGN.md](docs/DESIGN.md) — design system, tokens, and UI conventions
 
 ## Contributing
 
