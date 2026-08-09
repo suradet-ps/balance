@@ -1,6 +1,6 @@
 //! INVS (SQL Server) Tauri command handlers.
 
-use crate::invs::db::{connect, InvsDbConfig, InvsDbState};
+use crate::invs::db::{InvsDbConfig, InvsDbState, connect};
 use futures::TryStreamExt;
 use serde::{Deserialize, Serialize};
 use tiberius::{QueryItem, Row};
@@ -60,10 +60,7 @@ fn cal_to_fiscal_idx(cal_month: i32) -> usize {
 // ─── Row Helpers ─────────────────────────────────────────────────────────
 
 fn get_str(row: &Row, idx: usize) -> String {
-    row.get::<&str, usize>(idx)
-        .unwrap_or("")
-        .trim()
-        .to_string()
+    row.get::<&str, usize>(idx).unwrap_or("").trim().to_string()
 }
 
 fn get_f64(row: &Row, idx: usize) -> f64 {
@@ -136,7 +133,11 @@ pub async fn invs_get_drug_monthly_value(
     let mut monthly_value = [0.0f64; 12];
     let mut drug_name = String::new();
 
-    while let Some(item) = stream.try_next().await.map_err(|e| format!("Row error: {e}"))? {
+    while let Some(item) = stream
+        .try_next()
+        .await
+        .map_err(|e| format!("Row error: {e}"))?
+    {
         if let QueryItem::Row(row) = item {
             if drug_name.is_empty() {
                 drug_name = get_str(&row, 1);
@@ -202,7 +203,11 @@ pub async fn invs_get_top_drugs_by_value(
 
     let mut results: Vec<DrugValueSummary> = Vec::new();
 
-    while let Some(item) = stream.try_next().await.map_err(|e| format!("Row error: {e}"))? {
+    while let Some(item) = stream
+        .try_next()
+        .await
+        .map_err(|e| format!("Row error: {e}"))?
+    {
         if let QueryItem::Row(row) = item {
             results.push(DrugValueSummary {
                 working_code: get_str(&row, 0),
@@ -232,7 +237,10 @@ pub async fn invs_get_top_drugs_by_value(
         ";
 
         let mut peak_stream = client
-            .query(peak_query, &[&item.working_code.as_str(), &start_date, &end_date])
+            .query(
+                peak_query,
+                &[&item.working_code.as_str(), &start_date, &end_date],
+            )
             .await
             .map_err(|e| format!("Peak query error: {e}"))?;
 
@@ -283,7 +291,11 @@ pub async fn invs_get_available_years(
 
     let mut years: Vec<u16> = Vec::new();
 
-    while let Some(item) = stream.try_next().await.map_err(|e| format!("Row error: {e}"))? {
+    while let Some(item) = stream
+        .try_next()
+        .await
+        .map_err(|e| format!("Row error: {e}"))?
+    {
         if let QueryItem::Row(row) = item {
             let fy = get_i32(&row, 0);
             if fy > 0 {
@@ -324,7 +336,11 @@ pub async fn invs_get_drug_list(
 
     let mut drugs: Vec<DrugItem> = Vec::new();
 
-    while let Some(item) = stream.try_next().await.map_err(|e| format!("Row error: {e}"))? {
+    while let Some(item) = stream
+        .try_next()
+        .await
+        .map_err(|e| format!("Row error: {e}"))?
+    {
         if let QueryItem::Row(row) = item {
             drugs.push(DrugItem {
                 working_code: get_str(&row, 0),

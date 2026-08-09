@@ -15,25 +15,52 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  frontend-lint:
-    name: Frontend Lint & Format
+  frontend-check:
+    name: Rust Format & Lint
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: false
 
-      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6
+      - uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8
         with:
-          bun-version: latest
+          toolchain: stable
+          components: rustfmt, clippy
 
-      - run: bun install --frozen-lockfile
+      - uses: swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4
 
-      - name: Biome check
-        run: bun run ci
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
 
-      - name: TypeScript type check
-        run: bun run type-check
+      - name: Format check
+        run: cargo fmt --check
+
+      - name: Clippy
+        run: cargo clippy --workspace --all-targets -- -D warnings
+
+  frontend-build:
+    name: Frontend Build (Trunk)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+
+      - uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8
+        with:
+          toolchain: stable
+          targets: wasm32-unknown-unknown
+
+      - uses: swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4
+
+      - name: Install Trunk
+        run: cargo install trunk --locked
+
+      - name: Build frontend
+        run: trunk build --config src/Trunk.toml
 
   design-enforcement:
     name: No Inline Hex Colors
@@ -43,10 +70,9 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Check for raw hex colors in Vue components
+      - name: Check for raw hex colors in stylesheets
         run: |
-          violations=$(grep -rnE '#[0-9a-fA-F]{6}[^0-9a-fA-F]|#[0-9a-fA-F]{3}[^0-9a-fA-F]' src/ \
-            --include='*.vue' \
+          violations=$(grep -rnE '#[0-9a-fA-F]{6}[^0-9a-fA-F]|#[0-9a-fA-F]{3}[^0-9a-fA-F]' src/assets \
             --include='*.css' \
             --exclude='kraken-theme.css' \
             || true)
@@ -65,11 +91,7 @@ jobs:
         with:
           persist-credentials: false
 
-      - uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8
-        with:
-          toolchain: stable
-
       - uses: EmbarkStudios/cargo-deny-action@3c6349835b2b7b196a839186cb8b78e02f7b5f25
         with:
           command: check all
-          manifest-path: src-tauri/Cargo.toml
+          manifest-path: Cargo.toml

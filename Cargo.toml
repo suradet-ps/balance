@@ -1,0 +1,26 @@
+# Workspace root for the Balance application.
+#
+# - `src-tauri/` — the Tauri 2 desktop application (host target).
+# - `src/` — the Leptos CSR frontend, compiled to `wasm32-unknown-unknown`
+#   only (`cargo check --target wasm32-unknown-unknown -p balance-frontend`).
+#
+# `default-members` is set to the desktop app so a plain `cargo build` /
+# `cargo check` at the repository root builds the application, not the wasm
+# frontend (which cannot compile for the host target).
+[workspace]
+members = ["src", "src-tauri"]
+default-members = ["src-tauri"]
+resolver = "2"
+
+[profile.dev]
+incremental = true
+
+# Shared release profile: panic=abort + codegen-units=1 + LTO keep the wasm
+# bundle and the desktop binary small (the Leptos frontend is built with
+# opt-level "z"; the Tauri binary gets the same, matching its previous
+# "s" setting within noise).
+[profile.release]
+panic = "abort"
+codegen-units = 1
+lto = true
+opt-level = "z"

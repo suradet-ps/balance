@@ -30,8 +30,6 @@ pub struct DrugItem {
     pub name: String,
 }
 
-
-
 // ─── Row helpers ──────────────────────────────────────────────────────────
 
 fn col_string(row: &sqlx::mysql::MySqlRow, col: &str) -> String {
@@ -92,9 +90,10 @@ pub async fn hosxp_connect(config: HosxpDbConfig) -> Result<(), String> {
 pub async fn hosxp_get_available_years() -> Result<Vec<i32>, String> {
     with_pool(|pool| {
         Box::pin(async move {
-            let rows = sqlx::query("SELECT DISTINCT YEAR(vstdate) AS yr FROM opitemrece ORDER BY yr DESC")
-                .fetch_all(pool)
-                .await?;
+            let rows =
+                sqlx::query("SELECT DISTINCT YEAR(vstdate) AS yr FROM opitemrece ORDER BY yr DESC")
+                    .fetch_all(pool)
+                    .await?;
 
             let years: Vec<i32> = rows
                 .iter()
@@ -186,7 +185,9 @@ pub async fn hosxp_get_top_drugs(year: i32, limit: u8) -> Result<Vec<DrugSummary
                         months
                             .iter()
                             .enumerate()
-                            .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
+                            .max_by(|(_, a), (_, b)| {
+                                a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal)
+                            })
                             .map(|(i, _)| (i + 1) as u32)
                             .unwrap_or(1)
                     } else {

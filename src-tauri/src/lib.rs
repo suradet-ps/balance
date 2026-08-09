@@ -15,8 +15,8 @@ use tokio::sync::Mutex;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    let vault = encryptman_keyring::Vault::new("balance")
-        .expect("failed to initialize OS keychain vault");
+    let vault =
+        encryptman_keyring::Vault::new("balance").expect("failed to initialize OS keychain vault");
 
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())

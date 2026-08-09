@@ -4,9 +4,9 @@
   "version": "0.1.0",
   "identifier": "Balance",
   "build": {
-    "beforeDevCommand": "bun run dev",
+    "beforeDevCommand": "trunk serve --config src/Trunk.toml",
     "devUrl": "http://localhost:1420",
-    "beforeBuildCommand": "bun run build",
+    "beforeBuildCommand": "trunk build --config src/Trunk.toml",
     "frontendDist": "../dist"
   },
   "app": {

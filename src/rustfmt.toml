@@ -1,0 +1,5 @@
+# The frontend crate intentionally uses a 2-space indent (inherited from the
+# Vue codebase it ports), while src-tauri uses rustfmt's default 4-space.
+# This per-crate config keeps `cargo fmt --check` green across the workspace.
+tab_spaces = 2
+max_width = 100

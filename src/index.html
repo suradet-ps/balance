@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="th">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Balance — HOSxP &amp; INVS Dashboard</title>
+        <link rel="icon" type="image/svg+xml" href="/logo.svg" />
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap"
+            rel="stylesheet"
+        />
+        <link data-trunk rel="css" href="assets/styles/kraken-theme.css" />
+        <link data-trunk rel="css" href="assets/styles/app.css" />
+        <link data-trunk rel="css" href="assets/styles/header.css" />
+        <link data-trunk rel="css" href="assets/styles/connection-settings.css" />
+        <link data-trunk rel="css" href="assets/styles/drug-search.css" />
+        <link data-trunk rel="css" href="assets/styles/drug-trend-chart.css" />
+        <link data-trunk rel="css" href="assets/styles/kpi-bar.css" />
+        <!--
+          Trunk's copy-file puts the file at the dist ROOT (dist/logo.svg),
+          so the header/favicon reference "/logo.svg" (not "/assets/logo.svg",
+          which would 404 in the packaged app that serves only dist/).
+        -->
+        <link data-trunk rel="copy-file" href="assets/logo.svg" />
+    </head>
+    <body>
+        <!--
+          Tauri v2 does not inject `window.__TAURI__` on its own — that global
+          object is normally provided by the `@tauri-apps/api` npm package, which
+          we cannot `import` here because the frontend has no JS bundler
+          (it is built by Trunk from Rust/wasm).  `withGlobalTauri` is enabled in
+          tauri.conf.json, but it is rejected by some Tauri v2 configs, so we
+          also load the API module at *runtime* from a CDN as a fallback and
+          expose it as `window.__TAURI__` so the Rust frontend's IPC layer
+          (services/tauri.rs, which reads `window.__TAURI__.core`) works without
+          any Node/npm tooling.
+
+          We import it *directly* from esm.sh rather than fetching the source
+          and re-importing it from a `blob:` URL.  Both esm.sh and jsdelivr's
+          `+esm` rewrite the package's internal imports to absolute paths such
+          as `/@tauri-apps/api@2.11.1/es2022/api.mjs`; those resolve fine
+          against esm.sh's *own* origin when imported directly, but they
+          cannot resolve from an opaque `blob:` origin.  The `script-src`
+          directive in tauri.conf.json therefore allows `https://esm.sh`.
+        -->
+        <script type="module">
+            window.__TAURI_PROMISE__ = import("https://esm.sh/@tauri-apps/api@2")
+                .then((mod) => {
+                    window.__TAURI__ = mod;
+                    return mod;
+                })
+                .catch((err) => {
+                    console.error("Failed to load Tauri global API:", err);
+                    throw err;
+                });
+        </script>
+
+        <link data-trunk rel="rust" />
+    </body>
+</html>

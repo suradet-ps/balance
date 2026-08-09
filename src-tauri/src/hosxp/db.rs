@@ -112,6 +112,8 @@ where
     let guard = get_pool_lock().read().await;
     match guard.as_ref() {
         Some(pool) => f(pool).await.map_err(|e| e.to_string()),
-        None => Err("HOSxP database not connected. Please configure connection settings.".to_string()),
+        None => {
+            Err("HOSxP database not connected. Please configure connection settings.".to_string())
+        }
     }
 }

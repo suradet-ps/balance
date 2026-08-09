@@ -58,23 +58,18 @@ impl InvsDbConfig {
 
 pub struct InvsDbState(pub Arc<Mutex<Option<Client<Compat<TcpStream>>>>>);
 
-
-
 pub async fn connect(cfg: &InvsDbConfig) -> Result<Client<Compat<TcpStream>>, String> {
     let mut config = Config::new();
 
     config.host(&cfg.host);
-    config
-        .port(cfg.port.parse().map_err(|e| format!("invalid port: {e}"))?);
+    config.port(cfg.port.parse().map_err(|e| format!("invalid port: {e}"))?);
     config.authentication(AuthMethod::sql_server(&cfg.user, &cfg.password));
     config.database(&cfg.database);
     config.encryption(EncryptionLevel::NotSupported);
     config.trust_cert();
 
-    if let Some(ref inst) = cfg.instance {
-        if !inst.is_empty() {
-            config.instance_name(inst);
-        }
+    if let Some(inst) = cfg.instance.as_ref().filter(|i| !i.is_empty()) {
+        config.instance_name(inst);
     }
 
     let tcp = TcpStream::connect(config.get_addr())

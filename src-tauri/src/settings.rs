@@ -38,9 +38,7 @@ pub async fn save_settings(
 ) -> Result<(), String> {
     let encrypted = SettingsFile {
         hosxp: hosxp.encrypt(&vault.0)?,
-        invs: invs
-            .map(|c| c.encrypt(&vault.0))
-            .transpose()?,
+        invs: invs.map(|c| c.encrypt(&vault.0)).transpose()?,
     };
     let path = settings_path(&app)?;
     let json = serde_json::to_string_pretty(&encrypted)
@@ -55,16 +53,13 @@ pub async fn load_settings(
     vault: tauri::State<'_, VaultState>,
 ) -> Result<SettingsFile, String> {
     let path = settings_path(&app)?;
-    let json = std::fs::read_to_string(&path)
-        .map_err(|e| format!("cannot read settings file: {e}"))?;
+    let json =
+        std::fs::read_to_string(&path).map_err(|e| format!("cannot read settings file: {e}"))?;
     let encrypted: SettingsFile =
         serde_json::from_str(&json).map_err(|e| format!("parse failed: {e}"))?;
     let plain = SettingsFile {
         hosxp: encrypted.hosxp.decrypt(&vault.0)?,
-        invs: encrypted
-            .invs
-            .map(|c| c.decrypt(&vault.0))
-            .transpose()?,
+        invs: encrypted.invs.map(|c| c.decrypt(&vault.0)).transpose()?,
     };
     Ok(plain)
 }

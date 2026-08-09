@@ -2,7 +2,7 @@
 name = "balance"
 version = "0.1.0"
 edition = "2024"
-description = "Balance — Combined HOSxP & INVS drug dashboard"
+description = "Balance โ€” Combined HOSxP & INVS drug dashboard"
 license = "MIT"
 
 [lib]
@@ -27,11 +27,3 @@ futures = "0.3"
 # Settings encryption
 encryptman-keyring = "0.1"
 
-[profile.dev]
-incremental = true
-
-[profile.release]
-panic = "abort"
-codegen-units = 1
-lto = true
-opt-level = "s"

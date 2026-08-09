@@ -1,0 +1,224 @@
+/* ============================================================
+   Connection settings drawer — ported verbatim from
+   `ConnectionSettings.vue` <style scoped>.
+   ------------------------------------------------------------
+   The `.status-dot` / `.dot-*` rules are scoped under
+   `.drawer-overlay` (originally via Vue's scoped attribute).
+   Without the scope, these saturated variants would clobber the
+   light-coloured ones used by the app header on its dark
+   background.
+   ============================================================ */
+
+.drawer-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(16, 17, 20, 0.5);
+  display: flex;
+  align-items: stretch;
+  justify-content: flex-end;
+  z-index: 1000;
+}
+
+.drawer-panel {
+  width: 400px;
+  background: var(--bg-base);
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  box-shadow: -6px 0 32px rgba(0, 0, 0, 0.15);
+  padding: 20px;
+  gap: 14px;
+  overflow-y: auto;
+}
+
+.drawer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.drawer-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.btn-icon {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 6px;
+  border-radius: var(--radius-sm);
+  transition: background var(--transition-fast), color var(--transition-fast);
+}
+
+.btn-icon:hover {
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+}
+
+.btn-icon.small {
+  position: absolute;
+  right: 6px;
+  padding: 0 6px;
+}
+
+/* Tabs */
+.tab-bar {
+  display: flex;
+  gap: 4px;
+  background: var(--bg-elevated);
+  border-radius: var(--radius-lg);
+  padding: 3px;
+}
+
+.tab-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border: none;
+  border-radius: var(--radius-md);
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  color: var(--text-secondary);
+  background: transparent;
+  transition: all var(--transition-fast);
+}
+
+.tab-btn.active {
+  background: var(--bg-base);
+  color: var(--kraken-purple);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+  font-weight: 600;
+}
+
+/* Form */
+.form-section {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.status-row {
+  display: flex;
+  align-items: center;
+}
+
+.drawer-overlay .status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+.drawer-overlay .dot-green { background: var(--green); }
+.drawer-overlay .dot-red { background: var(--red); }
+
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.form-group {
+  grid-column: span 2;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.form-group--half {
+  grid-column: span 1;
+}
+
+.form-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.password-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.password-wrap .input {
+  padding-right: 36px;
+}
+
+.error-box {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  background: var(--red-subtle);
+  border: 1px solid rgba(224, 62, 62, 0.25);
+  border-radius: var(--radius-sm);
+  color: var(--red);
+  font-size: 13px;
+  padding: 10px 14px;
+  line-height: 1.5;
+}
+
+.drawer-actions {
+  margin-top: auto;
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.save-feedback {
+  font-size: 12px;
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+  text-align: center;
+}
+
+.save-feedback.save-ok {
+  color: var(--green);
+  background: rgba(52, 199, 89, 0.1);
+}
+
+.save-feedback.save-err {
+  color: var(--red);
+  background: var(--red-subtle);
+  border: 1px solid rgba(224, 62, 62, 0.25);
+}
+
+/* Transitions */
+.drawer-enter-active,
+.drawer-leave-active {
+  transition: opacity var(--transition-med);
+}
+
+.drawer-enter-active .drawer-panel,
+.drawer-leave-active .drawer-panel {
+  transition: transform var(--transition-med);
+}
+
+.drawer-enter-from,
+.drawer-leave-to {
+  opacity: 0;
+}
+
+.drawer-enter-from .drawer-panel,
+.drawer-leave-to .drawer-panel {
+  transform: translateX(100%);
+}
