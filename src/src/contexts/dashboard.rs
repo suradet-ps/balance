@@ -1,17 +1,14 @@
 //! Dashboard state and data actions.
 //!
 //! Mirrors the Pinia `dashboard` store plus the `useHosxpData` /
-//! `useInvsData` composables: it owns the year, per-side lists / chart data
-//! and shared loading flags, and performs the async backend fetches.  All
+//! `useInvsData` composables: it owns the year, per-side chart data and
+//! loading flags, and performs the async backend fetches.  All
 //! backend communication goes through [`crate::services`].
 
 use leptos::prelude::*;
 use wasm_bindgen::JsValue;
 
-use crate::models::{
-  current_fiscal_year, ChartSeries, DrugResult, HosxpDrugSummary, InvsDrugValueSummary,
-  InvsYearSummary, Side,
-};
+use crate::models::{current_fiscal_year, ChartSeries, DrugResult, InvsYearSummary, Side};
 use crate::services::commands;
 
 /// Log a swallowed backend error (the original composables `console.error`).
@@ -31,24 +28,22 @@ pub struct DashboardContext {
   pub hosxp_years: RwSignal<Vec<i32>>,
   /// Icode of the drug currently selected on the HOSxP side.
   pub hosxp_selected_icode: RwSignal<Option<String>>,
-  /// Top-N HOSxP drugs for the selected year.
-  pub hosxp_top_drugs: RwSignal<Vec<HosxpDrugSummary>>,
   /// Monthly trend of the selected HOSxP drug (or `None`).
   pub hosxp_chart_data: RwSignal<Option<ChartSeries>>,
+  /// Whether a HOSxP chart fetch is in flight (shows that side's skeleton).
+  pub hosxp_loading_chart: RwSignal<bool>,
   /// Years available from INVS, newest first.
   pub invs_years: RwSignal<Vec<i32>>,
   /// Working code of the drug currently selected on the INVS side.
   pub invs_selected_code: RwSignal<Option<String>>,
-  /// Top-N INVS drugs for the selected year.
-  pub invs_top_drugs: RwSignal<Vec<InvsDrugValueSummary>>,
   /// Monthly trend of the selected INVS drug (or `None`).
   pub invs_chart_data: RwSignal<Option<ChartSeries>>,
+  /// Whether an INVS chart fetch is in flight (shows that side's skeleton).
+  pub invs_loading_chart: RwSignal<bool>,
   /// INVS yearly grand totals (or `None`).
   pub invs_year_summary: RwSignal<Option<InvsYearSummary>>,
   /// Whether a full refresh is in flight.
   pub loading: RwSignal<bool>,
-  /// Whether a chart fetch is in flight (shared by both sides).
-  pub loading_chart: RwSignal<bool>,
   /// Last dashboard-level error (displayed as a banner).
   pub error: RwSignal<Option<String>>,
 }
@@ -61,15 +56,14 @@ impl DashboardContext {
       selected_year: RwSignal::new(current_fiscal_year()),
       hosxp_years: RwSignal::new(Vec::new()),
       hosxp_selected_icode: RwSignal::new(None),
-      hosxp_top_drugs: RwSignal::new(Vec::new()),
       hosxp_chart_data: RwSignal::new(None),
+      hosxp_loading_chart: RwSignal::new(false),
       invs_years: RwSignal::new(Vec::new()),
       invs_selected_code: RwSignal::new(None),
-      invs_top_drugs: RwSignal::new(Vec::new()),
       invs_chart_data: RwSignal::new(None),
+      invs_loading_chart: RwSignal::new(false),
       invs_year_summary: RwSignal::new(None),
       loading: RwSignal::new(false),
-      loading_chart: RwSignal::new(false),
       error: RwSignal::new(None),
     };
     provide_context(ctx);
@@ -108,23 +102,28 @@ impl DashboardContext {
     }
   }
 
-  /// Fetch the top-N HOSxP drugs by dispensed quantity, store them, return them.
-  pub async fn fetch_hosxp_top_drugs(self, year: i32, limit: u8) -> Vec<HosxpDrugSummary> {
-    match commands::hosxp_get_top_drugs(year, limit).await {
-      Ok(drugs) => {
-        self.hosxp_top_drugs.set(drugs.clone());
-        drugs
-      }
-      Err(e) => {
-        log_err("HOSxP fetchTopDrugs", &e.message);
-        Vec::new()
-      }
-    }
+  /// Whether the HOSxP chart fetch for `(year, icode)` is still current
+  /// (a newer selection or year change may have superseded it).
+  #[must_use]
+  fn is_current_hosxp(self, year: i32, icode: &str) -> bool {
+    self.selected_year.get_untracked() == year
+      && self.hosxp_selected_icode.get_untracked().as_deref() == Some(icode)
+  }
+
+  /// Whether the INVS chart fetch for `(year, working_code)` is still current.
+  #[must_use]
+  fn is_current_invs(self, year: i32, code: &str) -> bool {
+    self.selected_year.get_untracked() == year
+      && self.invs_selected_code.get_untracked().as_deref() == Some(code)
   }
 
   /// Fetch the 12-month quantities for `icode`, store them, return them.
+  ///
+  /// A response that arrives after the user has already switched year or
+  /// selected a different drug is dropped instead of overwriting the newer
+  /// data.
   pub async fn fetch_hosxp_monthly(self, year: i32, icode: String) -> Option<ChartSeries> {
-    self.loading_chart.set(true);
+    self.hosxp_loading_chart.set(true);
     let result = match commands::hosxp_get_drug_monthly_qty(year, &icode).await {
       Ok(mut list) => list.drain(..).next().map(ChartSeries::Hosxp),
       Err(e) => {
@@ -132,8 +131,10 @@ impl DashboardContext {
         None
       }
     };
-    self.hosxp_chart_data.set(result.clone());
-    self.loading_chart.set(false);
+    if self.is_current_hosxp(year, &icode) {
+      self.hosxp_chart_data.set(result.clone());
+      self.hosxp_loading_chart.set(false);
+    }
     result
   }
 
@@ -167,23 +168,13 @@ impl DashboardContext {
     }
   }
 
-  /// Fetch the top-N INVS drugs by purchase value, store them, return them.
-  pub async fn fetch_invs_top_drugs(self, year: i32, limit: u8) -> Vec<InvsDrugValueSummary> {
-    match commands::invs_get_top_drugs_by_value(year, limit).await {
-      Ok(drugs) => {
-        self.invs_top_drugs.set(drugs.clone());
-        drugs
-      }
-      Err(e) => {
-        log_err("INVS fetchTopDrugs", &e.message);
-        Vec::new()
-      }
-    }
-  }
-
   /// Fetch the 12 fiscal-month values for `working_code`, store, return.
+  ///
+  /// A response that arrives after the user has already switched year or
+  /// selected a different drug is dropped instead of overwriting the newer
+  /// data.
   pub async fn fetch_invs_monthly(self, year: i32, working_code: String) -> Option<ChartSeries> {
-    self.loading_chart.set(true);
+    self.invs_loading_chart.set(true);
     let result = match commands::invs_get_drug_monthly_value(year, &working_code).await {
       Ok(data) => Some(ChartSeries::Invs(data)),
       Err(e) => {
@@ -191,8 +182,10 @@ impl DashboardContext {
         None
       }
     };
-    self.invs_chart_data.set(result.clone());
-    self.loading_chart.set(false);
+    if self.is_current_invs(year, &working_code) {
+      self.invs_chart_data.set(result.clone());
+      self.invs_loading_chart.set(false);
+    }
     result
   }
 
@@ -234,23 +227,22 @@ impl DashboardContext {
 
   // ── Combined refresh ──────────────────────────────────────────────
 
-  /// Refresh the HOSxP side: top drugs, then the selected drug's chart.
+  /// Refresh the HOSxP side: the selected drug's chart.
   pub async fn refresh_hosxp(self, year: i32) {
-    let _ = self.fetch_hosxp_top_drugs(year, 10).await;
     if let Some(icode) = self.hosxp_selected_icode.get_untracked() {
       let _ = self.fetch_hosxp_monthly(year, icode).await;
     }
   }
 
-  /// Refresh the INVS side: top drugs + year summary in parallel, then the
-  /// selected drug's chart.
+  /// Refresh the INVS side: year summary + the selected drug's chart.
   pub async fn refresh_invs(self, year: i32) {
-    let top = self.fetch_invs_top_drugs(year, 10);
     let summary = self.fetch_invs_year_summary(year);
-    let _ = futures::join!(top, summary);
-    if let Some(code) = self.invs_selected_code.get_untracked() {
-      let _ = self.fetch_invs_monthly(year, code).await;
-    }
+    let chart = async {
+      if let Some(code) = self.invs_selected_code.get_untracked() {
+        let _ = self.fetch_invs_monthly(year, code).await;
+      }
+    };
+    let _ = futures::join!(summary, chart);
   }
 
   /// Refresh every side for `year`, mirroring the original `refreshAll`.
@@ -260,6 +252,10 @@ impl DashboardContext {
     let hosxp = self.refresh_hosxp(year);
     let invs = self.refresh_invs(year);
     let _ = futures::join!(hosxp, invs);
-    self.loading.set(false);
+    // A newer refresh may have started for another year; only this one gets
+    // to clear the global loading flag.
+    if self.selected_year.get_untracked() == year {
+      self.loading.set(false);
+    }
   }
 }

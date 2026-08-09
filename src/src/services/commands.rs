@@ -10,8 +10,8 @@ use wasm_bindgen::JsValue;
 
 use super::tauri::{build_args, invoke};
 use crate::models::{
-  BackendError, HosxpDbConfig, HosxpDrugItem, HosxpDrugMonthly, HosxpDrugSummary, InvsDbConfig,
-  InvsDrugItem, InvsDrugMonthlyValue, InvsDrugValueSummary, InvsYearSummary, SettingsFile,
+  BackendError, HosxpDbConfig, HosxpDrugItem, HosxpDrugMonthly, InvsDbConfig, InvsDrugItem,
+  InvsDrugMonthlyValue, InvsYearSummary, SettingsFile,
 };
 
 fn arg<T: Serialize>(value: &T) -> JsValue {
@@ -27,14 +27,6 @@ pub async fn hosxp_connect(config: &HosxpDbConfig) -> Result<(), BackendError> {
 /// Fetch distinct years present in `opitemrece`, newest first.
 pub async fn hosxp_get_available_years() -> Result<Vec<i32>, BackendError> {
   invoke::<Vec<i32>>("hosxp_get_available_years", &JsValue::NULL)
-    .await
-    .map_err(BackendError::from_js)
-}
-
-/// Fetch top-N drugs by total dispensed quantity in `year`.
-pub async fn hosxp_get_top_drugs(year: i32, limit: u8) -> Result<Vec<HosxpDrugSummary>, BackendError> {
-  let args = build_args(&[("year", &JsValue::from(year)), ("limit", &JsValue::from(limit))]);
-  invoke::<Vec<HosxpDrugSummary>>("hosxp_get_top_drugs", &args)
     .await
     .map_err(BackendError::from_js)
 }
@@ -67,17 +59,6 @@ pub async fn invs_connect(cfg: &InvsDbConfig) -> Result<(), BackendError> {
 /// Fetch distinct Thai fiscal years available in `MS_IVO`, descending.
 pub async fn invs_get_available_years() -> Result<Vec<i32>, BackendError> {
   invoke::<Vec<i32>>("invs_get_available_years", &JsValue::NULL)
-    .await
-    .map_err(BackendError::from_js)
-}
-
-/// Fetch top-N drugs ranked by total purchase value in the fiscal `year`.
-pub async fn invs_get_top_drugs_by_value(
-  year: i32,
-  limit: u8,
-) -> Result<Vec<InvsDrugValueSummary>, BackendError> {
-  let args = build_args(&[("year", &JsValue::from(year)), ("limit", &JsValue::from(limit))]);
-  invoke::<Vec<InvsDrugValueSummary>>("invs_get_top_drugs_by_value", &args)
     .await
     .map_err(BackendError::from_js)
 }

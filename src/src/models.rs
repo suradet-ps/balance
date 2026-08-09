@@ -11,15 +11,6 @@ use serde::{Deserialize, Serialize};
 
 // ─── HOSxP (MySQL) types ──────────────────────────────────────────────
 
-/// Summary row from `hosxp_get_top_drugs`.
-#[derive(Clone, Debug, Deserialize)]
-pub struct HosxpDrugSummary {
-  pub icode: String,
-  pub drug_name: String,
-  pub total_qty: f64,
-  pub peak_month: u32,
-}
-
 /// 12-month breakdown from `hosxp_get_drug_monthly_qty`
 /// (`monthly_qty` index 0 = January, calendar order).
 #[derive(Clone, Debug, Deserialize)]
@@ -38,16 +29,6 @@ pub struct HosxpDrugItem {
 }
 
 // ─── INVS (SQL Server) types ──────────────────────────────────────────
-
-/// Summary row from `invs_get_top_drugs_by_value`.
-#[derive(Clone, Debug, Deserialize)]
-pub struct InvsDrugValueSummary {
-  pub working_code: String,
-  pub drug_name: String,
-  pub total_value: f64,
-  pub peak_month: u8,
-  pub peak_month_value: f64,
-}
 
 /// 12-month breakdown from `invs_get_drug_monthly_value`
 /// (`monthly_value` index 0 = ต.ค. — fiscal order).

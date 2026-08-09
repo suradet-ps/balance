@@ -69,24 +69,6 @@ impl DbConfigContext {
     ctx
   }
 
-  /// Whether the HOSxP settings contain a host and a username.
-  #[must_use]
-  pub fn hosxp_configured(self) -> Memo<bool> {
-    Memo::new(move |_| {
-      let c = self.hosxp_config.get();
-      !c.host.trim().is_empty() && !c.user.trim().is_empty()
-    })
-  }
-
-  /// Whether the INVS settings contain a host and a username.
-  #[must_use]
-  pub fn invs_configured(self) -> Memo<bool> {
-    Memo::new(move |_| {
-      let c = self.invs_config.get();
-      !c.host.trim().is_empty() && !c.user.trim().is_empty()
-    })
-  }
-
   /// Whether at least one database is connected (drives the no-connection banner).
   #[must_use]
   pub fn any_connected(self) -> Memo<bool> {

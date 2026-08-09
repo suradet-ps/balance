@@ -45,6 +45,12 @@ pub fn DrugSearchPanel(
   // schedules a fresh one, so only the final keystroke inside a 300 ms window
   // triggers a search (same debounce semantics as the original `watch`).
   let timer_handle: Rc<RefCell<Option<i32>>> = Rc::new(RefCell::new(None));
+  // Generation counter: every keystroke, clear and selection bumps it, so an
+  // in-flight search response that belongs to an older query is dropped
+  // instead of overwriting newer results (or popping the dropdown back open
+  // after a clear).  A signal rather than a cell because it is captured by
+  // handlers inside the `view!` closure (which requires `Send + Sync`).
+  let search_gen = RwSignal::new(0u64);
 
   let run_search = {
     let dash = dash;
@@ -54,7 +60,9 @@ pub fn DrugSearchPanel(
     let show_dropdown = show_dropdown;
     let cursor = cursor;
     let side = side;
+    let search_gen = search_gen;
     move || {
+      let gen = search_gen.get_untracked();
       let q = query.get_untracked();
       cursor.set(0);
       if q.trim().is_empty() {
@@ -66,9 +74,11 @@ pub fn DrugSearchPanel(
       spawn_local(async move {
         loading.set(true);
         let hits = dash.search_drugs(side, q).await;
-        results.set(hits);
-        show_dropdown.set(true);
-        loading.set(false);
+        if search_gen.get_untracked() == gen {
+          results.set(hits);
+          show_dropdown.set(true);
+          loading.set(false);
+        }
       });
     }
   };
@@ -79,6 +89,7 @@ pub fn DrugSearchPanel(
   let schedule_search = {
     let timer_handle = timer_handle.clone();
     let fire_fn = fire_fn;
+    let search_gen = search_gen;
     move || {
       let Some(win) = web_sys::window() else { return };
       if let Some(handle) = timer_handle.borrow_mut().take() {
@@ -87,6 +98,7 @@ pub fn DrugSearchPanel(
       if let Ok(handle) = win.set_timeout_with_callback_and_timeout_and_arguments_0(&fire_fn, 300) {
         *timer_handle.borrow_mut() = Some(handle);
       }
+      search_gen.update(|g| *g += 1);
     }
   };
 
@@ -116,7 +128,9 @@ pub fn DrugSearchPanel(
     let query = query;
     let show_dropdown = show_dropdown;
     let on_select = on_select;
+    let search_gen = search_gen;
     move |drug: DrugResult| {
+      search_gen.update(|g| *g += 1);
       query.set(format!("{} — {}", drug.code(), drug.name()));
       on_select.run(drug.code().to_owned());
       show_dropdown.set(false);
@@ -158,10 +172,14 @@ pub fn DrugSearchPanel(
     }
   };
 
-  let clear = move |_| {
-    query.set(String::new());
-    results.set(Vec::new());
-    show_dropdown.set(false);
+  let clear = {
+    let search_gen = search_gen;
+    move |_| {
+      search_gen.update(|g| *g += 1);
+      query.set(String::new());
+      results.set(Vec::new());
+      show_dropdown.set(false);
+    }
   };
 
   // ── Click-outside dismissal ─────────────────────────────────────────

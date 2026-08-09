@@ -4,6 +4,9 @@
 //! connection / year watchers, and lays out the two-panel dashboard, the KPI
 //! bar and the banners.
 
+use std::cell::Cell;
+use std::rc::Rc;
+
 use leptos::html::Div;
 use leptos::prelude::*;
 use leptos::task::spawn_local;
@@ -16,7 +19,6 @@ use crate::components::icons::{Icon, IconKind};
 use crate::components::summary_kpi_bar::SummaryKpiBar;
 use crate::contexts::{DashboardContext, DbConfigContext};
 use crate::models::Side;
-use crate::services::timers::set_timeout_ms;
 
 /// The root component of the frontend.
 #[component]
@@ -84,13 +86,29 @@ pub fn App() -> impl IntoView {
     refresh_all();
   });
 
-  // Boot: load persisted settings (auto-connects), then a first refresh.
+  // First connection (boot auto-connect or a manual test in the drawer) →
+  // reload everything.  Replacing the original's blind 500 ms timer avoids the
+  // race where a slow DB connect finishes *after* the timer-fired refresh has
+  // already failed with "not connected" and left the dashboard empty.
+  let refresh_on_connect = {
+    let db = db;
+    let refresh_all = refresh_all;
+    let was_connected = Rc::new(Cell::new(false));
+    Effect::new(move |_| {
+      let connected = db.any_connected().get();
+      if connected && !was_connected.replace(connected) {
+        refresh_all();
+      }
+    })
+  };
+  let _ = refresh_on_connect;
+
+  // Boot: load persisted settings (auto-connects), then let the connect
+  // watcher above trigger the first refresh.
   let root_ref = NodeRef::<Div>::new();
   root_ref.on_load(move |_root| {
-    let db = db;
     spawn_local(async move {
       db.init_from_storage().await;
-      set_timeout_ms(move || refresh_all(), 500);
     });
   });
 
@@ -159,7 +177,7 @@ pub fn App() -> impl IntoView {
                       <DrugTrendChart
                           side=Side::Hosxp
                           data=dash.hosxp_chart_data
-                          loading=dash.loading_chart
+                          loading=dash.hosxp_loading_chart
                       />
                   </div>
               </section>
@@ -180,7 +198,7 @@ pub fn App() -> impl IntoView {
                       <DrugTrendChart
                           side=Side::Invs
                           data=dash.invs_chart_data
-                          loading=dash.loading_chart
+                          loading=dash.invs_loading_chart
                       />
                   </div>
               </section>
