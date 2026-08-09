@@ -174,7 +174,7 @@ pub fn DrugSearchPanel(
         let show_dropdown = show_dropdown;
         Box::new(move |ev: MouseEvent| {
           let Some(target) = ev.target() else { return };
-          let Some(root) = root_ref.get() else { return };
+          let Some(root) = root_ref.get_untracked() else { return };
           let Ok(node) = target.dyn_into::<web_sys::Node>() else { return };
           if !root.contains(Some(&node)) {
             show_dropdown.set(false);
@@ -222,7 +222,7 @@ pub fn DrugSearchPanel(
                           <button
                               class="dropdown-item"
                               class:active=move || cursor.get() == index.get()
-                              on:mouseenter=move |_| cursor.set(index.get())
+                              on:mouseenter=move |_| cursor.set(index.get_untracked())
                               on:click=move |_| select_drug(item.clone())
                           >
                               <span class="drug-code font-mono">{item.code().to_owned()}</span>

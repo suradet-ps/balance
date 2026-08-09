@@ -115,16 +115,19 @@ pub fn Icon(
 ) -> impl IntoView {
   let icon_shapes = shapes(kind);
   view! {
+      // Note: SVG-element attributes are passed verbatim by the Leptos 0.8
+      // view! macro (no snake_case → kebab-case conversion), so the exact
+      // DOM spellings (`viewBox`, `stroke-width`, …) must be used here.
       <svg
           xmlns="http://www.w3.org/2000/svg"
           width=size
           height=size
-          view_box="0 0 24 24"
+          viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
-          stroke_width="2"
-          stroke_linecap="round"
-          stroke_linejoin="round"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
           class=class
           aria-hidden="true"
       >

@@ -92,7 +92,7 @@ pub fn DrugTrendChart(
       hover.set(Some(idx));
 
       let Some(series) = data.get_untracked() else { return };
-      let Some(tip) = tooltip_ref.get() else { return };
+      let Some(tip) = tooltip_ref.get_untracked() else { return };
       let val = series.values().get(idx).copied().unwrap_or(0.0);
       let total = series.total().max(1.0);
       let pct = format!("{:.1}", val / total * 100.0);
@@ -127,7 +127,7 @@ pub fn DrugTrendChart(
       let _ = style.set_property("border-color", &bar_color);
       let _ = style.set_property("display", "block");
       let css_w = canvas_ref
-        .get()
+        .get_untracked()
         .map(|c| c.client_width() as f64)
         .unwrap_or(0.0);
       let mut px = x + 14.0;
@@ -142,7 +142,7 @@ pub fn DrugTrendChart(
 
   let on_mouseleave = move |_ev: MouseEvent| {
     hover.set(None);
-    if let Some(tip) = tooltip_ref.get() {
+    if let Some(tip) = tooltip_ref.get_untracked() {
       let _ = HtmlElement::style(&tip).set_property("display", "none");
     }
   };

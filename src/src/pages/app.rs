@@ -35,7 +35,7 @@ pub fn App() -> impl IntoView {
       spawn_local(async move {
         dash.loading.set(true);
         dash.error.set(None);
-        let year = dash.selected_year.get();
+        let year = dash.selected_year.get_untracked();
         if db.hosxp_connected.get_untracked() {
           let _ = dash.refresh_hosxp(year).await;
         }
