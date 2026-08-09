@@ -4,7 +4,7 @@
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>Balance — HOSxP &amp; INVS Dashboard</title>
-        <link rel="icon" type="image/svg+xml" href="/assets/logo.svg" />
+        <link rel="icon" type="image/svg+xml" href="/logo.svg" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
         <link
@@ -18,6 +18,11 @@
         <link data-trunk rel="css" href="assets/styles/drug-search.css" />
         <link data-trunk rel="css" href="assets/styles/drug-trend-chart.css" />
         <link data-trunk rel="css" href="assets/styles/kpi-bar.css" />
+        <!--
+          Trunk's copy-file puts the file at the dist ROOT (dist/logo.svg),
+          so the header/favicon reference "/logo.svg" (not "/assets/logo.svg",
+          which would 404 in the packaged app that serves only dist/).
+        -->
         <link data-trunk rel="copy-file" href="assets/logo.svg" />
     </head>
     <body>

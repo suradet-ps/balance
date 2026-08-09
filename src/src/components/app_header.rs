@@ -43,7 +43,7 @@ pub fn AppHeader(on_open_settings: Callback<()>) -> impl IntoView {
   view! {
       <header class="app-header">
           <div class="header-brand">
-              <img class="brand-icon" src="/assets/logo.svg" alt="Balance Logo" />
+              <img class="brand-icon" src="/logo.svg" alt="Balance Logo" />
               <div class="brand-text">
                   <span class="brand-title">"Balance"</span>
                   <span class="brand-sub">"โรงพยาบาลสระโบสถ์"</span>
