@@ -520,8 +520,9 @@ update, and prove itself.
 - [ ] **Auto-update.** `tauri-plugin-updater` with a release feed; the
   app checks on boot and the header shows "อัปเดตพร้อมแล้ว" with a
   restart action.
-- [ ] **Installer polish.** App icons (the `gen-icons.cjs` script already
-  exists), app name in Thai-friendly casing, uninstall cleanliness
+- [ ] **Installer polish.** App icons (`scripts/gen-icons.sh` regenerates
+  every platform size from `icon-master.svg` via `cargo tauri icon`),
+  app name in Thai-friendly casing, uninstall cleanliness
   (settings + local DB handled on uninstall for macOS/Windows).
 
 ### The v1.0 gate (clinical/business validation)
