@@ -2,10 +2,8 @@
 node_modules/
 
 # Build output
-dist/
-
-# Rust build
-src-tauri/target/
+/target/
+/dist/
 
 # Tauri generated
 src-tauri/gen/

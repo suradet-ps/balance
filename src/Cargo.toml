@@ -1,0 +1,52 @@
+[package]
+name = "balance-frontend"
+version = "0.1.0"
+edition = "2021"
+description = "Leptos CSR frontend for the Balance Tauri application."
+authors = ["Suradet Pratomsak"]
+license = "MIT"
+
+# The Leptos CSR application is a `cdylib` compiled to `wasm32-unknown-unknown`
+# and bundled by `trunk`.  It is a member of the Cargo workspace at the
+# repository root (see the root `Cargo.toml`); the shared release profile there
+# applies to this crate (opt-level "z" + LTO).  All dependency versions are
+# declared explicitly so the crate can be lifted out and built in isolation
+# without surprises.
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+leptos = { version = "0.8.20", features = ["csr"] }
+
+wasm-bindgen = "0.2.126"
+wasm-bindgen-futures = "0.4.76"
+js-sys = "0.3.103"
+serde = { version = "1.0.229", features = ["derive"] }
+serde-wasm-bindgen = "0.6.5"
+web-sys = { version = "0.3.103", features = [
+    "Window",
+    "Document",
+    "Element",
+    "Node",
+    "Event",
+    "EventTarget",
+    "MouseEvent",
+    "KeyboardEvent",
+    "HtmlElement",
+    "HtmlCanvasElement",
+    "CanvasRenderingContext2d",
+    "CanvasGradient",
+    "TextMetrics",
+    "CssStyleDeclaration",
+    "DomRect",
+    "HtmlInputElement",
+    "HtmlSelectElement",
+    "ResizeObserver",
+    "ResizeObserverEntry",
+    "console",
+] }
+futures = "0.3.31"
+console_error_panic_hook = "0.1.7"
+
+[dev-dependencies]
+wasm-bindgen-test = "0.3.76"

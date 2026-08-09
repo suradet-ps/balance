@@ -1,0 +1,123 @@
+/* ============================================================
+   Drug trend chart — ported verbatim from
+   `DrugTrendChart.vue` <style scoped>.
+   ------------------------------------------------------------
+   The chart itself is now rendered by a Rust canvas renderer
+   (replacing Apache ECharts).  Two classes were added for the
+   hand-rolled tooltip overlay: `.chart-tooltip` (absolutely
+   positioned HTML tooltip that mirrors ECharts' axis tooltip)
+   and `.chart-tooltip-label` (the month name line).
+   ============================================================ */
+
+.chart-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: 12px 16px 8px;
+  gap: 8px;
+}
+
+.chart-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+  gap: 12px;
+}
+
+.chart-title-group {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  overflow: hidden;
+  min-width: 0;
+}
+
+.chart-drug-code {
+  font-size: 11px;
+  color: var(--text-muted);
+  background: var(--bg-elevated);
+  padding: 2px 6px;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.chart-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.chart-total {
+  font-size: 11px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.chart-total-value {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-left: 4px;
+}
+
+.echarts-canvas {
+  flex: 1;
+  min-height: 0;
+}
+
+.chart-loading {
+  flex: 1;
+  padding: 12px;
+}
+
+.chart-empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  color: var(--text-muted);
+  text-align: center;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.chart-empty-icon { opacity: 0.3; }
+
+/* ─── Canvas chart additions (replacing ECharts) ─────────── */
+
+.chart-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.chart-tooltip {
+  position: absolute;
+  pointer-events: none;
+  background: var(--chart-hosxp-tooltip-bg);
+  border: 1px solid var(--chart-hosxp);
+  border-radius: var(--radius-sm);
+  color: var(--text-on-primary);
+  font-family: var(--font-body);
+  font-size: 12px;
+  line-height: 1.6;
+  padding: 6px 10px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  z-index: 300;
+  white-space: nowrap;
+}
+
+.chart-tooltip-label {
+  font-weight: 700;
+}
+
+.chart-tooltip-value {
+  font-weight: 700;
+}
