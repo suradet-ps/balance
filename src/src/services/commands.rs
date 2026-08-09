@@ -21,7 +21,9 @@ fn arg<T: Serialize>(value: &T) -> JsValue {
 /// Connect to the HOSxP MySQL database with `config`.
 pub async fn hosxp_connect(config: &HosxpDbConfig) -> Result<(), BackendError> {
   let args = build_args(&[("config", &arg(config))]);
-  invoke::<()>("hosxp_connect", &args).await.map_err(BackendError::from_js)
+  invoke::<()>("hosxp_connect", &args)
+    .await
+    .map_err(BackendError::from_js)
 }
 
 /// Fetch distinct years present in `opitemrece`, newest first.
@@ -36,7 +38,10 @@ pub async fn hosxp_get_drug_monthly_qty(
   year: i32,
   icode: &str,
 ) -> Result<Vec<HosxpDrugMonthly>, BackendError> {
-  let args = build_args(&[("year", &JsValue::from(year)), ("icode", &JsValue::from_str(icode))]);
+  let args = build_args(&[
+    ("year", &JsValue::from(year)),
+    ("icode", &JsValue::from_str(icode)),
+  ]);
   invoke::<Vec<HosxpDrugMonthly>>("hosxp_get_drug_monthly_qty", &args)
     .await
     .map_err(BackendError::from_js)
@@ -53,7 +58,9 @@ pub async fn hosxp_get_drug_list(search: &str) -> Result<Vec<HosxpDrugItem>, Bac
 /// Connect to the INVS SQL Server with `cfg`.
 pub async fn invs_connect(cfg: &InvsDbConfig) -> Result<(), BackendError> {
   let args = build_args(&[("cfg", &arg(cfg))]);
-  invoke::<()>("invs_connect", &args).await.map_err(BackendError::from_js)
+  invoke::<()>("invs_connect", &args)
+    .await
+    .map_err(BackendError::from_js)
 }
 
 /// Fetch distinct Thai fiscal years available in `MS_IVO`, descending.
@@ -99,7 +106,9 @@ pub async fn save_settings(
   invs: Option<&InvsDbConfig>,
 ) -> Result<(), BackendError> {
   let args = build_args(&[("hosxp", &arg(hosxp)), ("invs", &arg(&invs))]);
-  invoke::<()>("save_settings", &args).await.map_err(BackendError::from_js)
+  invoke::<()>("save_settings", &args)
+    .await
+    .map_err(BackendError::from_js)
 }
 
 /// Load the persisted connection configs (decrypted).

@@ -29,11 +29,7 @@ pub fn ConnectionSettings(
   let close = move || on_close.run(());
 
   let connect_hosxp = {
-    let db = db;
-    let close = close;
     move |_| {
-      let db = db;
-      let close = close;
       spawn_local(async move {
         // The original drawer closes itself on a successful test.
         if db.connect_hosxp().await {
@@ -44,11 +40,7 @@ pub fn ConnectionSettings(
   };
 
   let connect_invs = {
-    let db = db;
-    let close = close;
     move |_| {
-      let db = db;
-      let close = close;
       spawn_local(async move {
         if db.connect_invs().await {
           close();
@@ -58,16 +50,14 @@ pub fn ConnectionSettings(
   };
 
   let save_hosxp = {
-    let db = db;
     move |_| {
-      let db = db;
       spawn_local(async move {
         let _ = db.save_settings().await;
       });
     }
   };
 
-  let save_invs = save_hosxp.clone();
+  let save_invs = save_hosxp;
 
   let on_overlay = move |ev: web_sys::MouseEvent| {
     // Click on the dimmed backdrop (not the panel) closes the drawer.
@@ -410,5 +400,8 @@ fn bind_text<C: Send + Sync + 'static>(
 /// Read the current value of an `<input>` from an event.
 fn input_value(ev: &web_sys::Event) -> Option<String> {
   let target = ev.target()?;
-  target.dyn_into::<HtmlInputElement>().ok().map(|el| el.value())
+  target
+    .dyn_into::<HtmlInputElement>()
+    .ok()
+    .map(|el| el.value())
 }

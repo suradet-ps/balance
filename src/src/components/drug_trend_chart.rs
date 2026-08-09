@@ -53,7 +53,7 @@ pub fn DrugTrendChart(
   Effect::new(move |_| {
     let series = data.get();
     let hovered = hover.get();
-    let _ = size.get();
+    size.get();
     if let Some(canvas) = canvas_ref.get() {
       draw_chart(&canvas, side, series.as_ref(), hovered, &layout_slot_effect);
     }
@@ -74,16 +74,13 @@ pub fn DrugTrendChart(
   });
 
   let on_mousemove = {
-    let canvas_ref = canvas_ref;
-    let tooltip_ref = tooltip_ref;
     let layout_slot = layout_slot.clone();
-    let hover = hover;
-    let data = data;
-    let side = side;
     move |ev: MouseEvent| {
       let x = ev.offset_x() as f64;
       let y = ev.offset_y() as f64;
-      let Some(layout) = *layout_slot.borrow() else { return };
+      let Some(layout) = *layout_slot.borrow() else {
+        return;
+      };
       if x < layout.left || x > layout.right || y < layout.top || y > layout.bottom {
         hover.set(None);
         return;
@@ -91,8 +88,12 @@ pub fn DrugTrendChart(
       let idx = (((x - layout.left) / layout.band) as usize).min(11);
       hover.set(Some(idx));
 
-      let Some(series) = data.get_untracked() else { return };
-      let Some(tip) = tooltip_ref.get_untracked() else { return };
+      let Some(series) = data.get_untracked() else {
+        return;
+      };
+      let Some(tip) = tooltip_ref.get_untracked() else {
+        return;
+      };
       let val = series.values().get(idx).copied().unwrap_or(0.0);
       let total = series.total().max(1.0);
       let pct = format!("{:.1}", val / total * 100.0);
@@ -107,7 +108,11 @@ pub fn DrugTrendChart(
         } else {
           "--chart-invs"
         },
-        if side == Side::Hosxp { "#7132f5" } else { "#149e61" },
+        if side == Side::Hosxp {
+          "#7132f5"
+        } else {
+          "#149e61"
+        },
       );
       let tooltip_bg = css_var(
         if side == Side::Hosxp {
@@ -290,12 +295,18 @@ fn draw_chart(
 ) {
   let css_w = canvas.client_width().max(1) as f64;
   let css_h = canvas.client_height().max(1) as f64;
-  let dpr = web_sys::window().map(|w| w.device_pixel_ratio()).unwrap_or(1.0);
+  let dpr = web_sys::window()
+    .map(|w| w.device_pixel_ratio())
+    .unwrap_or(1.0);
   canvas.set_width((css_w * dpr).round() as u32);
   canvas.set_height((css_h * dpr).round() as u32);
 
-  let Ok(Some(obj)) = canvas.get_context("2d") else { return };
-  let Ok(ctx) = obj.dyn_into::<CanvasRenderingContext2d>() else { return };
+  let Ok(Some(obj)) = canvas.get_context("2d") else {
+    return;
+  };
+  let Ok(ctx) = obj.dyn_into::<CanvasRenderingContext2d>() else {
+    return;
+  };
   let _ = ctx.scale(dpr, dpr);
   ctx.clear_rect(0.0, 0.0, css_w, css_h);
 
@@ -325,7 +336,11 @@ fn draw_chart(
     } else {
       "--chart-invs"
     },
-    if side == Side::Hosxp { "#7132f5" } else { "#149e61" },
+    if side == Side::Hosxp {
+      "#7132f5"
+    } else {
+      "#149e61"
+    },
   );
   let bar_light = if side == Side::Hosxp {
     "rgba(113,50,245,0.3)"
@@ -338,13 +353,17 @@ fn draw_chart(
     } else {
       "--chart-invs-line"
     },
-    if side == Side::Hosxp { "#5741d8" } else { "#026b3f" },
+    if side == Side::Hosxp {
+      "#5741d8"
+    } else {
+      "#026b3f"
+    },
   );
   let text_secondary = css_var("--text-secondary", "#686b82");
   let text_muted = css_var("--text-muted", "#9497a9");
 
   let font = "10px 'IBM Plex Mono', 'Courier New', monospace";
-  let _ = ctx.set_font(font);
+  ctx.set_font(font);
 
   let mut label_w = 0.0f64;
   for k in 0..=tick_count {
@@ -361,10 +380,10 @@ fn draw_chart(
   let band = (right - left) / 12.0;
 
   // Dashed horizontal grid lines + right-aligned y labels.
-  let _ = ctx.set_stroke_style_str("rgba(104,107,130,0.08)");
-  let _ = ctx.set_fill_style_str(&text_muted);
-  let _ = ctx.set_text_align("right");
-  let _ = ctx.set_text_baseline("middle");
+  ctx.set_stroke_style_str("rgba(104,107,130,0.08)");
+  ctx.set_fill_style_str(&text_muted);
+  ctx.set_text_align("right");
+  ctx.set_text_baseline("middle");
   let dash = js_sys::Array::new();
   dash.push(&JsValue::from_f64(4.0));
   dash.push(&JsValue::from_f64(4.0));
@@ -379,7 +398,7 @@ fn draw_chart(
     let _ = ctx.fill_text(&fmt_y(v, side), left - 6.0, y);
   }
   let _ = ctx.set_line_dash(&js_sys::Array::new());
-  let _ = ctx.set_stroke_style_str("rgba(104,107,130,0.15)");
+  ctx.set_stroke_style_str("rgba(104,107,130,0.15)");
   ctx.begin_path();
   ctx.move_to(left, bottom);
   ctx.line_to(right, bottom);
@@ -392,7 +411,7 @@ fn draw_chart(
     let h = (v / max_tick) * (bottom - top);
     let x = x_center - w / 2.0;
     let y = bottom - h;
-    let _ = if hover == Some(i) {
+    if hover == Some(i) {
       ctx.set_fill_style_str(&bar_color)
     } else {
       let grad = ctx.create_linear_gradient(0.0, y, 0.0, bottom);
@@ -404,8 +423,8 @@ fn draw_chart(
   }
 
   // 3-month moving-average line + points.
-  let _ = ctx.set_stroke_style_str(&line_color);
-  let _ = ctx.set_line_width(2.0);
+  ctx.set_stroke_style_str(&line_color);
+  ctx.set_line_width(2.0);
   ctx.begin_path();
   let mut first = true;
   for (i, a) in avg.iter().enumerate() {
@@ -419,7 +438,7 @@ fn draw_chart(
     }
   }
   ctx.stroke();
-  let _ = ctx.set_fill_style_str(&line_color);
+  ctx.set_fill_style_str(&line_color);
   for (i, a) in avg.iter().enumerate() {
     let x = left + band * (i as f64 + 0.5);
     let y = bottom - (a / max_tick) * (bottom - top);
@@ -429,9 +448,9 @@ fn draw_chart(
   }
 
   // Month labels under the x-axis.
-  let _ = ctx.set_fill_style_str(&text_secondary);
-  let _ = ctx.set_text_align("center");
-  let _ = ctx.set_text_baseline("top");
+  ctx.set_fill_style_str(&text_secondary);
+  ctx.set_text_align("center");
+  ctx.set_text_baseline("top");
   for (i, month) in months.iter().enumerate() {
     let x = left + band * (i as f64 + 0.5);
     let _ = ctx.fill_text(month, x, bottom + 6.0);

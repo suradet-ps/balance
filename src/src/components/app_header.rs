@@ -32,7 +32,9 @@ pub fn AppHeader(on_open_settings: Callback<()>) -> impl IntoView {
 
   let on_year_change = move |ev: Event| {
     let Some(target) = ev.target() else { return };
-    let Ok(select) = target.dyn_into::<HtmlSelectElement>() else { return };
+    let Ok(select) = target.dyn_into::<HtmlSelectElement>() else {
+      return;
+    };
     if let Ok(year) = select.value().parse::<i32>() {
       dash.set_year(year);
     }

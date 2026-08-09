@@ -53,14 +53,6 @@ pub fn DrugSearchPanel(
   let search_gen = RwSignal::new(0u64);
 
   let run_search = {
-    let dash = dash;
-    let query = query;
-    let results = results;
-    let loading = loading;
-    let show_dropdown = show_dropdown;
-    let cursor = cursor;
-    let side = side;
-    let search_gen = search_gen;
     move || {
       let gen = search_gen.get_untracked();
       let q = query.get_untracked();
@@ -70,7 +62,6 @@ pub fn DrugSearchPanel(
         show_dropdown.set(false);
         return;
       }
-      let dash = dash;
       spawn_local(async move {
         loading.set(true);
         let hits = dash.search_drugs(side, q).await;
@@ -89,7 +80,6 @@ pub fn DrugSearchPanel(
   let schedule_search = {
     let timer_handle = timer_handle.clone();
     let fire_fn = fire_fn;
-    let search_gen = search_gen;
     move || {
       let Some(win) = web_sys::window() else { return };
       if let Some(handle) = timer_handle.borrow_mut().take() {
@@ -104,7 +94,6 @@ pub fn DrugSearchPanel(
 
   // ── Input handlers ──────────────────────────────────────────────────
   let on_input = {
-    let query = query;
     let schedule_search = schedule_search.clone();
     move |ev: web_sys::Event| {
       if let Some(v) = input_value(&ev) {
@@ -114,72 +103,47 @@ pub fn DrugSearchPanel(
     }
   };
 
-  let move_cursor = {
-    let results = results;
-    let cursor = cursor;
-    move |dir: i32| {
-      let len = results.get_untracked().len() as i32;
-      let next = cursor.get_untracked() as i32 + dir;
-      cursor.set(next.clamp(0, (len - 1).max(0)) as usize);
+  let move_cursor = move |dir: i32| {
+    let len = results.get_untracked().len() as i32;
+    let next = cursor.get_untracked() as i32 + dir;
+    cursor.set(next.clamp(0, (len - 1).max(0)) as usize);
+  };
+
+  let select_drug = move |drug: DrugResult| {
+    search_gen.update(|g| *g += 1);
+    query.set(format!("{} — {}", drug.code(), drug.name()));
+    on_select.run(drug.code().to_owned());
+    show_dropdown.set(false);
+  };
+
+  let select_current = move || {
+    if let Some(drug) = results.get_untracked().get(cursor.get_untracked()) {
+      select_drug(drug.clone());
     }
   };
 
-  let select_drug = {
-    let query = query;
-    let show_dropdown = show_dropdown;
-    let on_select = on_select;
-    let search_gen = search_gen;
-    move |drug: DrugResult| {
-      search_gen.update(|g| *g += 1);
-      query.set(format!("{} — {}", drug.code(), drug.name()));
-      on_select.run(drug.code().to_owned());
-      show_dropdown.set(false);
+  let on_keydown = move |ev: KeyboardEvent| match ev.key().as_str() {
+    "Escape" => show_dropdown.set(false),
+    "ArrowDown" => {
+      ev.prevent_default();
+      move_cursor(1);
     }
+    "ArrowUp" => {
+      ev.prevent_default();
+      move_cursor(-1);
+    }
+    "Enter" => {
+      ev.prevent_default();
+      select_current();
+    }
+    _ => {}
   };
 
-  let select_current = {
-    let results = results;
-    let cursor = cursor;
-    let select_drug = select_drug.clone();
-    move || {
-      if let Some(drug) = results.get_untracked().get(cursor.get_untracked()) {
-        select_drug(drug.clone());
-      }
-    }
-  };
-
-  let on_keydown = {
-    let show_dropdown = show_dropdown;
-    let move_cursor = move_cursor.clone();
-    let select_current = select_current.clone();
-    move |ev: KeyboardEvent| {
-      match ev.key().as_str() {
-        "Escape" => show_dropdown.set(false),
-        "ArrowDown" => {
-          ev.prevent_default();
-          move_cursor(1);
-        }
-        "ArrowUp" => {
-          ev.prevent_default();
-          move_cursor(-1);
-        }
-        "Enter" => {
-          ev.prevent_default();
-          select_current();
-        }
-        _ => {}
-      }
-    }
-  };
-
-  let clear = {
-    let search_gen = search_gen;
-    move |_| {
-      search_gen.update(|g| *g += 1);
-      query.set(String::new());
-      results.set(Vec::new());
-      show_dropdown.set(false);
-    }
+  let clear = move |_| {
+    search_gen.update(|g| *g += 1);
+    query.set(String::new());
+    results.set(Vec::new());
+    show_dropdown.set(false);
   };
 
   // ── Click-outside dismissal ─────────────────────────────────────────
@@ -188,12 +152,14 @@ pub fn DrugSearchPanel(
   {
     if let Some(doc) = web_sys::window().and_then(|w| w.document()) {
       let closure = Closure::wrap({
-        let root_ref = root_ref;
-        let show_dropdown = show_dropdown;
         Box::new(move |ev: MouseEvent| {
           let Some(target) = ev.target() else { return };
-          let Some(root) = root_ref.get_untracked() else { return };
-          let Ok(node) = target.dyn_into::<web_sys::Node>() else { return };
+          let Some(root) = root_ref.get_untracked() else {
+            return;
+          };
+          let Ok(node) = target.dyn_into::<web_sys::Node>() else {
+            return;
+          };
           if !root.contains(Some(&node)) {
             show_dropdown.set(false);
           }
@@ -257,5 +223,8 @@ pub fn DrugSearchPanel(
 /// Read the current value of an `<input>` from an event.
 fn input_value(ev: &web_sys::Event) -> Option<String> {
   let target = ev.target()?;
-  target.dyn_into::<HtmlInputElement>().ok().map(|el| el.value())
+  target
+    .dyn_into::<HtmlInputElement>()
+    .ok()
+    .map(|el| el.value())
 }

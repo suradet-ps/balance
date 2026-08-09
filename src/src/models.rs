@@ -38,7 +38,6 @@ pub struct InvsDrugMonthlyValue {
   pub drug_name: String,
   pub monthly_value: Vec<f64>,
   pub total_value: f64,
-  pub peak_month: u8,
 }
 
 /// Grand totals from `invs_get_year_summary`.
@@ -46,8 +45,6 @@ pub struct InvsDrugMonthlyValue {
 pub struct InvsYearSummary {
   pub total_value: f64,
   pub unique_drug_count: i32,
-  pub peak_month: u8,
-  pub peak_month_value: f64,
 }
 
 /// Autocomplete hit from `invs_get_drug_list`.
@@ -231,16 +228,6 @@ impl ChartSeries {
       Self::Invs(_) => &FISCAL_MONTHS_SHORT,
     }
   }
-
-  /// The bar-series legend label.
-  #[must_use]
-  pub fn series_label(&self) -> &'static str {
-    if self.is_value() {
-      "มูลค่ารายเดือน"
-    } else {
-      "จำนวนจ่าย"
-    }
-  }
 }
 
 // ─── Fiscal year utilities ────────────────────────────────────────────
@@ -261,21 +248,6 @@ pub const THAI_MONTHS_SHORT: [&str; 12] = [
   "ธ.ค.",
 ];
 
-pub const THAI_MONTHS_FULL: [&str; 12] = [
-  "มกราคม",
-  "กุมภาพันธ์",
-  "มีนาคม",
-  "เมษายน",
-  "พฤษภาคม",
-  "มิถุนายน",
-  "กรกฎาคม",
-  "สิงหาคม",
-  "กันยายน",
-  "ตุลาคม",
-  "พฤศจิกายน",
-  "ธันวาคม",
-];
-
 /// Fiscal month arrays (index 0 = fiscal month 1 = ต.ค.).
 pub const FISCAL_MONTHS_SHORT: [&str; 12] = [
   "ต.ค.",
@@ -292,28 +264,17 @@ pub const FISCAL_MONTHS_SHORT: [&str; 12] = [
   "ก.ย.",
 ];
 
-pub const FISCAL_MONTHS_FULL: [&str; 12] = [
-  "ตุลาคม",
-  "พฤศจิกายน",
-  "ธันวาคม",
-  "มกราคม",
-  "กุมภาพันธ์",
-  "มีนาคม",
-  "เมษายน",
-  "พฤษภาคม",
-  "มิถุนายน",
-  "กรกฎาคม",
-  "สิงหาคม",
-  "กันยายน",
-];
-
 /// Thai fiscal year: FY N = 1 Oct (N−1) to 30 Sep N.
 ///
 /// Pure helper (unit-testable); [`current_fiscal_year`] feeds it the live
 /// clock values.
 #[must_use]
 pub fn fiscal_year_from(month: u32, year: i32) -> i32 {
-  if month >= 10 { year + 1 } else { year }
+  if month >= 10 {
+    year + 1
+  } else {
+    year
+  }
 }
 
 /// Return the current Thai fiscal year (CE).
@@ -321,32 +282,6 @@ pub fn fiscal_year_from(month: u32, year: i32) -> i32 {
 pub fn current_fiscal_year() -> i32 {
   let now = js_sys::Date::new_0();
   fiscal_year_from(now.get_month() + 1, now.get_full_year() as i32)
-}
-
-/// Convert a calendar month (1–12) to a 0-based fiscal index (Oct=0, …, Sep=11).
-#[must_use]
-pub fn cal_month_to_fiscal_idx(cal_month: u32) -> usize {
-  if cal_month >= 10 {
-    (cal_month - 10) as usize
-  } else {
-    (cal_month + 2) as usize
-  }
-}
-
-/// Convert a 0-based fiscal index back to a calendar month (1–12).
-#[must_use]
-pub fn fiscal_idx_to_cal_month(f_idx: usize) -> u32 {
-  if f_idx < 3 {
-    (f_idx + 10) as u32
-  } else {
-    (f_idx - 2) as u32
-  }
-}
-
-/// Convert a CE year to Buddhist Era.
-#[must_use]
-pub fn ce_to_be(year: i32) -> i32 {
-  year + 543
 }
 
 // ─── Formatting helpers ───────────────────────────────────────────────
@@ -411,22 +346,9 @@ mod tests {
   }
 
   #[wasm_bindgen_test]
-  fn fiscal_index_roundtrips() {
-    assert_eq!(cal_month_to_fiscal_idx(10), 0);
-    assert_eq!(cal_month_to_fiscal_idx(12), 2);
-    assert_eq!(cal_month_to_fiscal_idx(1), 3);
-    assert_eq!(cal_month_to_fiscal_idx(9), 11);
-    for idx in 0..12 {
-      assert_eq!(cal_month_to_fiscal_idx(fiscal_idx_to_cal_month(idx)), idx);
-    }
-  }
-
-  #[wasm_bindgen_test]
   fn month_arrays_have_twelve_entries() {
     assert_eq!(THAI_MONTHS_SHORT.len(), 12);
-    assert_eq!(THAI_MONTHS_FULL.len(), 12);
     assert_eq!(FISCAL_MONTHS_SHORT.len(), 12);
-    assert_eq!(FISCAL_MONTHS_FULL.len(), 12);
   }
 
   #[wasm_bindgen_test]
@@ -446,11 +368,6 @@ mod tests {
   }
 
   #[wasm_bindgen_test]
-  fn buddhist_era_conversion() {
-    assert_eq!(ce_to_be(2025), 2568);
-  }
-
-  #[wasm_bindgen_test]
   fn chart_series_extracts_fields() {
     let hosxp = ChartSeries::Hosxp(HosxpDrugMonthly {
       icode: "1234".to_owned(),
@@ -462,7 +379,6 @@ mod tests {
     assert_eq!(hosxp.name(), "พารา");
     assert_eq!(hosxp.total(), 42.0);
     assert!(!hosxp.is_value());
-    assert_eq!(hosxp.series_label(), "จำนวนจ่าย");
     assert_eq!(hosxp.months()[0], "ม.ค.");
 
     let invs = ChartSeries::Invs(InvsDrugMonthlyValue {
@@ -470,11 +386,9 @@ mod tests {
       drug_name: "ยา X".to_owned(),
       monthly_value: vec![0.0; 12],
       total_value: 99.0,
-      peak_month: 1,
     });
     assert_eq!(invs.code(), "A1");
     assert!(invs.is_value());
-    assert_eq!(invs.series_label(), "มูลค่ารายเดือน");
     assert_eq!(invs.months()[0], "ต.ค.");
   }
 }

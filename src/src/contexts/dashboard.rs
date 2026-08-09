@@ -244,18 +244,4 @@ impl DashboardContext {
     };
     let _ = futures::join!(summary, chart);
   }
-
-  /// Refresh every side for `year`, mirroring the original `refreshAll`.
-  pub async fn refresh_all(self, year: i32) {
-    self.loading.set(true);
-    self.error.set(None);
-    let hosxp = self.refresh_hosxp(year);
-    let invs = self.refresh_invs(year);
-    let _ = futures::join!(hosxp, invs);
-    // A newer refresh may have started for another year; only this one gets
-    // to clear the global loading flag.
-    if self.selected_year.get_untracked() == year {
-      self.loading.set(false);
-    }
-  }
 }

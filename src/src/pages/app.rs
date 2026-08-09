@@ -30,23 +30,19 @@ pub fn App() -> impl IntoView {
 
   // Reload every side for the selected year — but only the connected ones,
   // matching the original `refreshAll`.
-  let refresh_all = {
-    let dash = dash;
-    let db = db;
-    move || {
-      spawn_local(async move {
-        dash.loading.set(true);
-        dash.error.set(None);
-        let year = dash.selected_year.get_untracked();
-        if db.hosxp_connected.get_untracked() {
-          let _ = dash.refresh_hosxp(year).await;
-        }
-        if db.invs_connected.get_untracked() {
-          let _ = dash.refresh_invs(year).await;
-        }
-        dash.loading.set(false);
-      });
-    }
+  let refresh_all = move || {
+    spawn_local(async move {
+      dash.loading.set(true);
+      dash.error.set(None);
+      let year = dash.selected_year.get_untracked();
+      if db.hosxp_connected.get_untracked() {
+        let _ = dash.refresh_hosxp(year).await;
+      }
+      if db.invs_connected.get_untracked() {
+        let _ = dash.refresh_invs(year).await;
+      }
+      dash.loading.set(false);
+    });
   };
 
   // HOSxP connection → fetch available years, correcting the selected year.
@@ -90,18 +86,13 @@ pub fn App() -> impl IntoView {
   // reload everything.  Replacing the original's blind 500 ms timer avoids the
   // race where a slow DB connect finishes *after* the timer-fired refresh has
   // already failed with "not connected" and left the dashboard empty.
-  let refresh_on_connect = {
-    let db = db;
-    let refresh_all = refresh_all;
-    let was_connected = Rc::new(Cell::new(false));
-    Effect::new(move |_| {
-      let connected = db.any_connected().get();
-      if connected && !was_connected.replace(connected) {
-        refresh_all();
-      }
-    })
-  };
-  let _ = refresh_on_connect;
+  let was_connected = Rc::new(Cell::new(false));
+  Effect::new(move |_| {
+    let connected = db.any_connected().get();
+    if connected && !was_connected.replace(connected) {
+      refresh_all();
+    }
+  });
 
   // Boot: load persisted settings (auto-connects), then let the connect
   // watcher above trigger the first refresh.
