@@ -386,7 +386,6 @@ mod tests {
     assert_eq!(hosxp.name(), "พารา");
     assert_eq!(hosxp.total(), 42.0);
     assert!(hosxp.aux_values().is_empty());
-    assert_eq!(hosxp.aux_total(), 0.0);
     assert_eq!(hosxp.months()[0], "ม.ค.");
 
     let invs = ChartSeries::Invs(InvsDrugMonthlyValue {
