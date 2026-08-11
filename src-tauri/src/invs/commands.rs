@@ -12,6 +12,9 @@ pub struct DrugMonthlyValue {
     pub working_code: String,
     pub drug_name: String,
     /// 12 elements in FISCAL order: index 0 = ต.ค. (Oct), 11 = ก.ย. (Sep)
+    pub monthly_qty: [f64; 12],
+    pub total_qty: f64,
+    /// 12 elements in FISCAL order — kept for the bar tooltip (parenthesised).
     pub monthly_value: [f64; 12],
     pub total_value: f64,
     /// 1-based fiscal month (1 = ต.ค.)
@@ -91,7 +94,8 @@ pub async fn invs_connect(
     Ok(())
 }
 
-/// Return monthly purchase values for a drug in fiscal-year order (ต.ค.–ก.ย.).
+/// Return monthly purchase quantities (plotted) + values (tooltip) for a
+/// drug in fiscal-year order (ต.ค.–ก.ย.).
 #[tauri::command]
 pub async fn invs_get_drug_monthly_value(
     year: u16,
@@ -110,6 +114,7 @@ pub async fn invs_get_drug_monthly_value(
             c.WORKING_CODE,
             ISNULL(g.DRUG_NAME, ''),
             MONTH(CAST(CAST(h.RECEIVE_DATE AS VARCHAR(8)) AS DATE)) AS cal_month,
+            SUM(ISNULL(c.QTY_ORDER, 0)) AS total_qty,
             SUM(c.VALUE) AS total_value
         FROM MS_IVO_C c
         JOIN MS_IVO h ON c.INVOICE_NO = h.INVOICE_NO
@@ -130,6 +135,7 @@ pub async fn invs_get_drug_monthly_value(
         .await
         .map_err(|e| format!("Query error: {e}"))?;
 
+    let mut monthly_qty = [0.0f64; 12];
     let mut monthly_value = [0.0f64; 12];
     let mut drug_name = String::new();
 
@@ -143,15 +149,19 @@ pub async fn invs_get_drug_monthly_value(
                 drug_name = get_str(&row, 1);
             }
             let cal_month = get_i32(&row, 2);
-            let value = get_f64(&row, 3);
+            let qty = get_f64(&row, 3);
+            let value = get_f64(&row, 4);
             if (1..=12).contains(&cal_month) {
-                monthly_value[cal_to_fiscal_idx(cal_month)] = value;
+                let idx = cal_to_fiscal_idx(cal_month);
+                monthly_qty[idx] = qty;
+                monthly_value[idx] = value;
             }
         }
     }
 
+    let total_qty: f64 = monthly_qty.iter().sum();
     let total_value: f64 = monthly_value.iter().sum();
-    let peak_month = monthly_value
+    let peak_month = monthly_qty
         .iter()
         .enumerate()
         .max_by(|a, b| a.1.partial_cmp(b.1).unwrap_or(std::cmp::Ordering::Equal))
@@ -161,6 +171,8 @@ pub async fn invs_get_drug_monthly_value(
     Ok(DrugMonthlyValue {
         working_code,
         drug_name,
+        monthly_qty,
+        total_qty,
         monthly_value,
         total_value,
         peak_month,

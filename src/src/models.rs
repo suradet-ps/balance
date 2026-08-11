@@ -31,13 +31,15 @@ pub struct HosxpDrugItem {
 // ─── INVS (SQL Server) types ──────────────────────────────────────────
 
 /// 12-month breakdown from `invs_get_drug_monthly_value`
-/// (`monthly_value` index 0 = ต.ค. — fiscal order).
+/// (`monthly_qty` index 0 = ต.ค. — fiscal order; the chart plots quantities
+/// while `monthly_value` is kept for the bar tooltip).
 #[derive(Clone, Debug, Deserialize)]
 pub struct InvsDrugMonthlyValue {
   pub working_code: String,
   pub drug_name: String,
+  pub monthly_qty: Vec<f64>,
+  pub total_qty: f64,
   pub monthly_value: Vec<f64>,
-  pub total_value: f64,
 }
 
 /// Grand totals from `invs_get_year_summary`.
@@ -166,7 +168,7 @@ impl BackendError {
 pub enum Side {
   /// HOSxP (MySQL) — quantities, calendar months, purple palette.
   Hosxp,
-  /// INVS (SQL Server) — values, fiscal months, green palette.
+  /// INVS (SQL Server) — order quantities, fiscal months, green palette.
   Invs,
 }
 
@@ -196,28 +198,33 @@ impl ChartSeries {
     }
   }
 
-  /// The 12 monthly values (calendar order for HOSxP, fiscal for INVS).
+  /// The 12 monthly values, i.e. what the chart plots
+  /// (calendar order for HOSxP, fiscal for INVS; INVS plots `QTY_ORDER`).
   #[must_use]
   pub fn values(&self) -> &[f64] {
     match self {
       Self::Hosxp(d) => &d.monthly_qty,
-      Self::Invs(d) => &d.monthly_value,
+      Self::Invs(d) => &d.monthly_qty,
     }
   }
 
-  /// The annual total (quantity / value).
+  /// The annual total of the plotted series (quantity / quantity).
   #[must_use]
   pub fn total(&self) -> f64 {
     match self {
       Self::Hosxp(d) => d.total_qty,
-      Self::Invs(d) => d.total_value,
+      Self::Invs(d) => d.total_qty,
     }
   }
 
-  /// Whether the series is a monetary value (INVS) vs. a plain quantity.
+  /// Secondary monthly figures kept for the tooltip — the monetary value
+  /// behind an INVS quantity plot (empty for HOSxP).
   #[must_use]
-  pub fn is_value(&self) -> bool {
-    matches!(self, Self::Invs(_))
+  pub fn aux_values(&self) -> &[f64] {
+    match self {
+      Self::Hosxp(_) => &[],
+      Self::Invs(d) => &d.monthly_value,
+    }
   }
 
   /// The x-axis month labels (calendar Thai months for HOSxP, fiscal for INVS).
@@ -378,17 +385,21 @@ mod tests {
     assert_eq!(hosxp.code(), "1234");
     assert_eq!(hosxp.name(), "พารา");
     assert_eq!(hosxp.total(), 42.0);
-    assert!(!hosxp.is_value());
+    assert!(hosxp.aux_values().is_empty());
+    assert_eq!(hosxp.aux_total(), 0.0);
     assert_eq!(hosxp.months()[0], "ม.ค.");
 
     let invs = ChartSeries::Invs(InvsDrugMonthlyValue {
       working_code: "A1".to_owned(),
       drug_name: "ยา X".to_owned(),
+      monthly_qty: vec![0.0; 12],
+      total_qty: 77.0,
       monthly_value: vec![0.0; 12],
-      total_value: 99.0,
     });
     assert_eq!(invs.code(), "A1");
-    assert!(invs.is_value());
+    assert_eq!(invs.total(), 77.0);
+    assert_eq!(invs.values().len(), 12);
+    assert_eq!(invs.aux_values().len(), 12);
     assert_eq!(invs.months()[0], "ต.ค.");
   }
 }

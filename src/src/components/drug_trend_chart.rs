@@ -3,10 +3,12 @@
 //! The Vue version rendered with Apache ECharts; with no JS bundler in the
 //! Leptos build the chart is drawn on a `<canvas>` with the 2D API instead.
 //! Visual parity is preserved: 12 bars with a top-to-bottom gradient, a
-//! 3-month moving-average line, dashed grid lines, compact `K` / `฿M` y-axis
-//! labels and an HTML axis tooltip that mirrors the ECharts one.  The chart
-//! keeps the whole stage mounted and redraws on data / size / hover changes;
-//! the loading and empty states are overlaid on top.
+//! 3-month moving-average line, dashed grid lines, compact `K` y-axis labels
+//! and an HTML axis tooltip that mirrors the ECharts one.  On the INVS side
+//! the bars plot `QTY_ORDER` and the tooltip additionally shows the purchase
+//! `VALUE` in parentheses.  The chart keeps the whole stage mounted and
+//! redraws on data / size / hover changes; the loading and empty states are
+//! overlaid on top.
 
 use std::cell::RefCell;
 use std::f64::consts::PI;
@@ -97,11 +99,6 @@ pub fn DrugTrendChart(
       let val = series.values().get(idx).copied().unwrap_or(0.0);
       let total = series.total().max(1.0);
       let pct = format!("{:.1}", val / total * 100.0);
-      let (label, formatted) = if series.is_value() {
-        ("มูลค่า", format_baht(val, 0))
-      } else {
-        ("จำนวน", format_qty(val))
-      };
       let bar_color = css_var(
         if side == Side::Hosxp {
           "--chart-hosxp"
@@ -122,10 +119,18 @@ pub fn DrugTrendChart(
         },
         "#1a1040",
       );
-      let html = format!(
-        "<span class=\"chart-tooltip-label\">{}</span><br/>{label}: <span class=\"chart-tooltip-value\" style=\"color:{bar_color}\">{formatted}</span> ({pct}%)",
-        series.months()[idx]
+      let mut html = format!(
+        "<span class=\"chart-tooltip-label\">{}</span><br/>จำนวน: <span class=\"chart-tooltip-value\" style=\"color:{bar_color}\">{}</span> ({pct}%)",
+        series.months()[idx],
+        format_qty(val)
       );
+      let aux = series.aux_values().get(idx).copied().unwrap_or(0.0);
+      if aux > 0.0 {
+        html.push_str(&format!(
+          "<br/>(มูลค่า: <span style=\"color:{bar_color}\">{}</span>)",
+          format_baht(aux, 0)
+        ));
+      }
       tip.set_inner_html(&html);
       let style = HtmlElement::style(&tip);
       let _ = style.set_property("background", &tooltip_bg);
@@ -177,18 +182,12 @@ pub fn DrugTrendChart(
               </div>
               <Show when=move || data.get().is_some()>
                   <div class="chart-total">
-                      {move || if side == Side::Hosxp { "รวมทั้งปี:" } else { "มูลค่ารวม:" }}
+                      "รวมทั้งปี:"
                       <span class="chart-total-value">
                           {move || {
                               data.get()
                                   .as_ref()
-                                  .map(|d| {
-                                      if d.is_value() {
-                                          format_baht(d.total(), 0)
-                                      } else {
-                                          format_qty(d.total())
-                                      }
-                                  })
+                                  .map(|d| format_qty(d.total()))
                                   .unwrap_or_default()
                           }}
                       </span>
@@ -262,26 +261,13 @@ fn nice_step(rough: f64) -> f64 {
   n * p
 }
 
-/// Compact y-axis label: `1.5K` for quantities, `฿1.2M` / `฿3K` / `฿80`
-/// for values (same rules as the original ECharts formatter).
-fn fmt_y(v: f64, side: Side) -> String {
-  match side {
-    Side::Hosxp => {
-      if v >= 1000.0 {
-        format!("{:.1}K", v / 1000.0)
-      } else {
-        format!("{}", v.round() as i64)
-      }
-    }
-    Side::Invs => {
-      if v >= 1_000_000.0 {
-        format!("฿{:.1}M", v / 1_000_000.0)
-      } else if v >= 1000.0 {
-        format!("฿{}K", (v / 1000.0).round() as i64)
-      } else {
-        format!("฿{}", v.round() as i64)
-      }
-    }
+/// Compact y-axis label: `1.5K` for quantities (both sides now plot
+/// `QTY_ORDER` / stock counts rather than monetary values).
+fn fmt_y(v: f64) -> String {
+  if v >= 1000.0 {
+    format!("{:.1}K", v / 1000.0)
+  } else {
+    format!("{}", v.round() as i64)
   }
 }
 
@@ -367,7 +353,7 @@ fn draw_chart(
 
   let mut label_w = 0.0f64;
   for k in 0..=tick_count {
-    let label = fmt_y(k as f64 * step, side);
+    let label = fmt_y(k as f64 * step);
     if let Ok(metrics) = ctx.measure_text(&label) {
       label_w = label_w.max(metrics.width());
     }
@@ -395,7 +381,7 @@ fn draw_chart(
     ctx.move_to(left, y);
     ctx.line_to(right, y);
     ctx.stroke();
-    let _ = ctx.fill_text(&fmt_y(v, side), left - 6.0, y);
+    let _ = ctx.fill_text(&fmt_y(v), left - 6.0, y);
   }
   let _ = ctx.set_line_dash(&js_sys::Array::new());
   ctx.set_stroke_style_str("rgba(104,107,130,0.15)");
