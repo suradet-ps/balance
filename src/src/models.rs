@@ -114,7 +114,12 @@ pub struct SettingsFile {
 // ─── Drug mapping (Phase 1) ─────────────────────────────────────────
 
 /// A full mapping link between HOSxP (`icode`) and INVS (`working_code`).
+///
+/// Some fields (`match_method`, `match_score`, both names) are part of the
+/// wire contract for the future reconciliation views (Phase 2) but are not
+/// yet rendered — they stay deserializable rather than being dropped.
 #[derive(Clone, Debug, Deserialize)]
+#[allow(dead_code)]
 pub struct MappingLink {
   pub icode: String,
   pub working_code: String,

@@ -33,6 +33,19 @@
   font-weight: 600;
 }
 
+/* ─── Panel match-status chip ─────────────────────────────────── */
+
+.mapping-chip {
+  display: flex;
+  align-items: center;
+  min-height: 24px;
+  flex-shrink: 0;
+}
+
+.mapping-chip .badge {
+  font-size: 12px;
+}
+
 /* ─── Toolbar ───────────────────────────────────────────────── */
 
 .mapping-toolbar {

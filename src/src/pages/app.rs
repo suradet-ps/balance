@@ -17,6 +17,7 @@ use crate::components::drug_search_panel::DrugSearchPanel;
 use crate::components::drug_trend_chart::DrugTrendChart;
 use crate::components::icons::{Icon, IconKind};
 use crate::components::mapping_panel::MappingPanel;
+use crate::components::mapping_status_chip::MappingStatusChip;
 use crate::components::summary_kpi_bar::SummaryKpiBar;
 use crate::contexts::{DashboardContext, DbConfigContext, MappingContext};
 use crate::models::Side;
@@ -26,7 +27,7 @@ use crate::models::Side;
 pub fn App() -> impl IntoView {
   let dash = DashboardContext::provide();
   let db = DbConfigContext::provide();
-  let _ = MappingContext::provide();
+  let mapping = MappingContext::provide();
   let any_connected = db.any_connected();
   let show_settings = RwSignal::new(false);
   let show_mapping = RwSignal::new(false);
@@ -109,20 +110,24 @@ pub fn App() -> impl IntoView {
   let on_hosxp_select = Callback::new(move |code: String| {
     dash.select_hosxp_drug(code.clone());
     let dash = dash;
+    let mapping = mapping;
     spawn_local(async move {
       let _ = dash
         .fetch_hosxp_monthly(dash.selected_year.get_untracked(), code)
         .await;
+      mapping.refresh_links().await;
     });
   });
 
   let on_invs_select = Callback::new(move |code: String| {
     dash.select_invs_drug(code.clone());
     let dash = dash;
+    let mapping = mapping;
     spawn_local(async move {
       let _ = dash
         .fetch_invs_monthly(dash.selected_year.get_untracked(), code)
         .await;
+      mapping.refresh_links().await;
     });
   });
 
@@ -168,6 +173,7 @@ pub fn App() -> impl IntoView {
                       placeholder="ค้นหายา HOSxP (รหัส / ชื่อ)..."
                       on_select=on_hosxp_select
                   />
+                  <MappingStatusChip side=Side::Hosxp />
                   <div class="chart-card card">
                       <DrugTrendChart
                           side=Side::Hosxp
@@ -189,6 +195,7 @@ pub fn App() -> impl IntoView {
                       placeholder="ค้นหายา INVS (รหัส / ชื่อ)..."
                       on_select=on_invs_select
                   />
+                  <MappingStatusChip side=Side::Invs />
                   <div class="chart-card card">
                       <DrugTrendChart
                           side=Side::Invs
