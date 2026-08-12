@@ -26,4 +26,8 @@ tokio-util = { version = "0.7", features = ["compat"] }
 futures = "0.3"
 # Settings encryption
 encryptman-keyring = "0.1"
+# Local app store (drug mappings, exclusions) — SQLite, bundled so no system lib
+rusqlite = { version = "0.40", features = ["bundled"] }
+# Bulk mapping CSV import (pure Rust, no Node toolchain)
+csv = "1.4"
 
