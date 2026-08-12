@@ -174,9 +174,7 @@ fn unify_thai(s: &str) -> String {
     while i < chars.len() {
         let c = chars[i];
         // "รร"
-        if c == 'ร'
-            && chars.get(i + 1) == Some(&'ร')
-        {
+        if c == 'ร' && chars.get(i + 1) == Some(&'ร') {
             out.push('ร');
             i += 2;
             continue;
@@ -339,7 +337,10 @@ mod tests {
             normalize("Omeprazole 20 mg (โอเมพราโซล)"),
             "omeprazole โอเมพราโซล"
         );
-        assert_eq!(normalize("Paracetamol (พาราเซตามอล)"), "paracetamol พาราเซตามอล");
+        assert_eq!(
+            normalize("Paracetamol (พาราเซตามอล)"),
+            "paracetamol พาราเซตามอล"
+        );
         assert_eq!(normalize("Amoxicillin (500 mg)"), "amoxicillin");
     }
 
@@ -365,7 +366,10 @@ mod tests {
     #[test]
     fn identical_drugs_score_1() {
         assert_eq!(similarity("Amoxicillin 500 mg", "Amoxicillin 500mg"), 1.0);
-        assert_eq!(similarity("พาราเซตามอล 500 มก.", "พาราเซตามอล 500 มิลลิกรัม"), 1.0);
+        assert_eq!(
+            similarity("พาราเซตามอล 500 มก.", "พาราเซตามอล 500 มิลลิกรัม"),
+            1.0
+        );
         assert_eq!(
             similarity("Paracetamol (พาราเซตามอล)", "พาราเซตามอล paracetamol"),
             1.0

@@ -154,10 +154,7 @@ mod tests {
         migrate(&mut conn).expect("second migration is a no-op");
 
         let versions = applied_versions(&conn).expect("versions read");
-        let expected: HashSet<String> = MIGRATIONS
-            .iter()
-            .map(|(v, _)| v.to_string())
-            .collect();
+        let expected: HashSet<String> = MIGRATIONS.iter().map(|(v, _)| v.to_string()).collect();
         assert_eq!(versions, expected);
     }
 
