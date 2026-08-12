@@ -192,45 +192,47 @@ workflow. *This phase has no acceptance shortcuts: mapping is the product.*
 
 ### Local app store
 
-- [ ] **Local SQLite database in the backend** (e.g. `rusqlite` or
-  `sqlx`/SQLite behind a Tauri command), stored under the app-data dir
-  next to `settings.json`, opened read-write *locally only*.
-- [ ] **Versioned migrations.** A `migrations/` directory and an
-  `migrate()` call at startup (before the UI mounts). Schema version
-  recorded; CI must be able to run the migrations against a fresh DB.
-- [ ] **`drug_mappings` table**: `{ id, icode (HOSxP), working_code (INVS),
+- [x] **Local SQLite database in the backend** (`rusqlite`, bundled), stored
+  under the app-data dir next to `settings.json` as `balance.db`, opened
+  read-write *locally only*. Schema and patterns in `docs/database.md`.
+- [x] **Versioned migrations.** A `migrations/` directory and a `migrate()`
+  call at startup (before the UI mounts). Schema version recorded; CI runs
+  the migrations against a fresh DB (`cargo test -p balance`).
+- [x] **`drug_mappings` table**: `{ id, icode (HOSxP), working_code (INVS),
   drug_name_hosxp, drug_name_invs, match_method (auto|manual|approved),
   match_score REAL, created_at, updated_at }` with unique
-  `(icode, working_code)` and indexes on both codes.
+  `(icode, working_code)` and indexes on both codes. A second migration
+  adds `mapping_exclusions` for the no-INVS marker.
 
 ### Matching workflow
 
-- [ ] **Side-by-side comparison view.** A new view (or a third panel)
-  listing HOSxP drugs with their top INVS candidate matches: code, name,
-  name-similarity score, and a "match" / "skip" action per row. Keyboard
-  accessible, batch-confirmable.
-- [ ] **Auto-suggest candidates.** A pure-Rust normalizer (lowercase,
-  strip spaces/parentheses/dose-strength suffixes, unify Thai
-  `รร/รา/รึ` spellings as far as practical) + similarity scoring
-  (normalized string equality, then token overlap, then Levenshtein).
-  The scoring function is unit-tested against a fixture of real drug
-  names.
-- [ ] **Manual match + unmatch.** Pharmacist can force a link, break a
-  wrong link, and mark a HOSxP drug as "no INVS equivalent" (e.g. no
-  longer procured) — with the reason recorded.
-- [ ] **Bulk import.** Import a mapping CSV (the hospital almost certainly
-  has an `icode ↔ working_code` list somewhere) with a dry-run preview:
-  "N will be added, M will conflict — review before applying".
-- [ ] **Match status on both panels.** Once mapped, the HOSxP panel shows
-  "↔ INVS: <working_code>" and vice versa, so the pharmacist sees the
-  link without opening the mapping view.
+- [x] **Side-by-side comparison view.** The mapping drawer (แมปยา in the
+  header) lists HOSxP drugs with their mapping state; per row the
+  pharmacist opens scored INVS candidates (code, name, similarity %) and
+  gets match / skip actions. Keyboard accessible (Enter-driven search,
+  focusable row actions), batch-confirmable.
+- [x] **Auto-suggest candidates.** A pure-Rust normalizer (lowercase, strip
+  parens/dose-strength suffixes, unify Thai `รร/รา/รึ` spellings) +
+  similarity scoring (normalized equality → token overlap → Levenshtein),
+  unit-tested against a fixture of real drug names
+  (`mapping/normalizer.rs`). Heuristics documented in `docs/mapping.md`.
+- [x] **Manual match + unmatch.** Pharmacist can force a link (manual INVS
+  search), break a wrong link, and mark a HOSxP drug as "no INVS
+  equivalent" (e.g. no longer procured) — with the reason recorded in
+  `mapping_exclusions`; mappings and exclusions are mutually exclusive.
+- [x] **Bulk import.** Paste an `icode ↔ working_code` CSV with a dry-run
+  preview: "N will be added, M will conflict — review before applying";
+  conflicts are never overwritten silently.
+- [x] **Match status on both panels.** Once mapped, the HOSxP panel shows
+  "แมปแล้ว ↔ INVS: <working_code>" and vice versa (plus ยังไม่แมป /
+  ไม่มีใน INVS states) — refreshed on every selection.
 
-**Acceptance:** a fresh install can migrate the local DB; the pharmacist
-can map 100+ drugs in one session via auto-suggest + bulk CSV; mappings
-survive app restart; unmapped drugs are visible as unmapped, never silently
-treated as equivalent.
+**Acceptance:** a fresh install can migrate the local DB (unit-tested in
+CI); the pharmacist can map 100+ drugs in one session via auto-suggest +
+bulk CSV; mappings survive app restart (SQLite persistence); unmapped drugs
+are visible as unmapped, never silently treated as equivalent.
 
-**Status:** PENDING
+**Status:** DONE (Phase 1)
 
 ---
 
@@ -618,9 +620,9 @@ The `docs/` directory should grow with the project:
 |----------|---------|------|
 | `DESIGN.md` | Design system, tokens, components | Exists (moved here) |
 | `ROADMAP.md` | This document | Now |
-| `architecture.md` | IPC surface, module map, data flow, command↔view matrix | Phase 1 |
-| `database.md` | Local store schema, migrations, query patterns | Phase 1 |
-| `mapping.md` | Matching heuristics, scoring, bulk-import format | Phase 1 |
+| `architecture.md` | IPC surface, module map, data flow, command↔view matrix | Done (Phase 1) |
+| `database.md` | Local store schema, migrations, query patterns | Done (Phase 1) |
+| `mapping.md` | Matching heuristics, scoring, bulk-import format | Done (Phase 1) |
 | `reconciliation.md` | Discrepancy rules, thresholds, worked examples | Phase 2 |
 | `perf-baseline.md` | Latency budgets, measurement method, results | Phase 4 |
 | `validation-report.md` | Pilot results, hand-verification log, sign-off | Phase 10 |
