@@ -1,5 +1,9 @@
 [advisories]
 ignore = [
+  # Pre-existing on main: sqlx 0.8.0 (Binary Protocol Misinterpretation,
+  # fixed upstream in sqlx 0.8.4).  Deferred to the dependency bump; the
+  # mapping engine (Phase 1) introduces no new advisories.
+  "RUSTSEC-2024-0363",
   "RUSTSEC-2023-0071",
   "RUSTSEC-2024-0370",
   "RUSTSEC-2024-0410",
