@@ -11,8 +11,8 @@ use wasm_bindgen::JsValue;
 
 use crate::contexts::DashboardContext;
 use crate::models::{
-  AutoMatchResult, BulkImportResult, DrugMappingStatus, InvsDrugItem, MappingCandidate,
-  MappingRow, MappingStats,
+  AutoMatchResult, BulkImportResult, DrugMappingStatus, InvsDrugItem, MappingCandidate, MappingRow,
+  MappingStats,
 };
 use crate::services::commands;
 use crate::services::timers::set_timeout_ms;
@@ -224,11 +224,12 @@ impl MappingContext {
       Some(candidate.score),
     )
     .await;
-    self.after_change(
-      result,
-      format!("แมปแล้ว: {icode} ↔ {}", candidate.working_code),
-    )
-    .await;
+    self
+      .after_change(
+        result,
+        format!("แมปแล้ว: {icode} ↔ {}", candidate.working_code),
+      )
+      .await;
   }
 
   /// Force a link to an arbitrary INVS drug picked by the pharmacist
@@ -250,7 +251,9 @@ impl MappingContext {
 
   /// Break the row's current link.
   pub async fn remove_link(self, row: &MappingRow) {
-    let Some(working_code) = &row.working_code else { return };
+    let Some(working_code) = &row.working_code else {
+      return;
+    };
     let result = commands::mapping_remove(&row.icode, working_code).await;
     self.after_change(result, "ยกเลิกการแมปแล้ว".to_owned()).await;
   }
@@ -308,10 +311,7 @@ impl MappingContext {
       Ok(result) => {
         self.auto_preview.set(None);
         let n = result.applied;
-        self.show_feedback(
-          format!("แมปอัตโนมัติแล้ว {n} รายการ (คะแนน ≥ 95%)"),
-          true,
-        );
+        self.show_feedback(format!("แมปอัตโนมัติแล้ว {n} รายการ (คะแนน ≥ 95%)"), true);
         self.reload().await;
         self.refresh_links().await;
       }

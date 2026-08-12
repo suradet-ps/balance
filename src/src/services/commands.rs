@@ -10,9 +10,9 @@ use wasm_bindgen::JsValue;
 
 use super::tauri::{build_args, invoke};
 use crate::models::{
-  AutoMatchResult, BackendError, BulkImportResult, DrugMappingStatus, HosxpDbConfig,
-  HosxpDrugItem, HosxpDrugMonthly, InvsDbConfig, InvsDrugItem, InvsDrugMonthlyValue,
-  InvsYearSummary, MappingCandidate, MappingRow, MappingStats, SettingsFile,
+  AutoMatchResult, BackendError, BulkImportResult, DrugMappingStatus, HosxpDbConfig, HosxpDrugItem,
+  HosxpDrugMonthly, InvsDbConfig, InvsDrugItem, InvsDrugMonthlyValue, InvsYearSummary,
+  MappingCandidate, MappingRow, MappingStats, SettingsFile,
 };
 
 fn arg<T: Serialize>(value: &T) -> JsValue {
@@ -186,7 +186,10 @@ pub async fn mapping_set(
     ("workingCode", &JsValue::from_str(working_code)),
     ("drugNameInvs", &JsValue::from_str(drug_name_invs)),
     ("method", &JsValue::from_str(method)),
-    ("score", &serde_wasm_bindgen::to_value(&score).unwrap_or(JsValue::NULL)),
+    (
+      "score",
+      &serde_wasm_bindgen::to_value(&score).unwrap_or(JsValue::NULL),
+    ),
   ]);
   invoke::<()>("mapping_set", &args)
     .await

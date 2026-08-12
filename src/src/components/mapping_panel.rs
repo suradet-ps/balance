@@ -96,7 +96,9 @@ pub fn MappingPanel(
   let confirm_manual = move |(row, item): (MappingRow, crate::models::InvsDrugItem)| {
     let mapping = mapping;
     spawn_local(async move {
-      mapping.manual_match(&row.icode, &row.drug_name, &item).await;
+      mapping
+        .manual_match(&row.icode, &row.drug_name, &item)
+        .await;
       manual_query.set(String::new());
       manual_results.set(Vec::new());
     });
@@ -416,9 +418,24 @@ fn MappingList(
 #[component]
 fn MappingStatsBar() -> impl IntoView {
   let mapping = expect_context::<MappingContext>();
-  let auto = move || mapping.stats.get().map_or(0, |s| s.by_method.get("auto").copied().unwrap_or(0));
-  let manual = move || mapping.stats.get().map_or(0, |s| s.by_method.get("manual").copied().unwrap_or(0));
-  let approved = move || mapping.stats.get().map_or(0, |s| s.by_method.get("approved").copied().unwrap_or(0));
+  let auto = move || {
+    mapping
+      .stats
+      .get()
+      .map_or(0, |s| s.by_method.get("auto").copied().unwrap_or(0))
+  };
+  let manual = move || {
+    mapping
+      .stats
+      .get()
+      .map_or(0, |s| s.by_method.get("manual").copied().unwrap_or(0))
+  };
+  let approved = move || {
+    mapping
+      .stats
+      .get()
+      .map_or(0, |s| s.by_method.get("approved").copied().unwrap_or(0))
+  };
   let excluded = move || mapping.stats.get().map_or(0, |s| s.exclusions);
   let total = move || mapping.stats.get().map_or(0, |s| s.total);
 
@@ -629,7 +646,8 @@ fn MappingRowView(
   on_unmark_no_invs: Callback<MappingRow>,
 ) -> impl IntoView {
   let row_state = StoredValue::new(row);
-  let is_prompt = move || no_invs_prompt.get().as_deref() == Some(row_state.get_value().icode.as_str());
+  let is_prompt =
+    move || no_invs_prompt.get().as_deref() == Some(row_state.get_value().icode.as_str());
 
   view! {
       <div class="mapping-row">
