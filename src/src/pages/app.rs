@@ -16,8 +16,9 @@ use crate::components::connection_settings::ConnectionSettings;
 use crate::components::drug_search_panel::DrugSearchPanel;
 use crate::components::drug_trend_chart::DrugTrendChart;
 use crate::components::icons::{Icon, IconKind};
+use crate::components::mapping_panel::MappingPanel;
 use crate::components::summary_kpi_bar::SummaryKpiBar;
-use crate::contexts::{DashboardContext, DbConfigContext};
+use crate::contexts::{DashboardContext, DbConfigContext, MappingContext};
 use crate::models::Side;
 
 /// The root component of the frontend.
@@ -25,8 +26,10 @@ use crate::models::Side;
 pub fn App() -> impl IntoView {
   let dash = DashboardContext::provide();
   let db = DbConfigContext::provide();
+  let _ = MappingContext::provide();
   let any_connected = db.any_connected();
   let show_settings = RwSignal::new(false);
+  let show_mapping = RwSignal::new(false);
 
   // Reload every side for the selected year — but only the connected ones,
   // matching the original `refreshAll`.
@@ -127,6 +130,7 @@ pub fn App() -> impl IntoView {
       <div class="app-shell" node_ref=root_ref>
           <AppHeader
               on_open_settings=Callback::new(move |_| show_settings.set(true))
+              on_open_mapping=Callback::new(move |_| show_mapping.set(true))
           />
 
           <Show when=move || dash.error.get().is_some()>
@@ -200,6 +204,11 @@ pub fn App() -> impl IntoView {
           <ConnectionSettings
               visible=show_settings
               on_close=Callback::new(move |_| show_settings.set(false))
+          />
+
+          <MappingPanel
+              visible=show_mapping
+              on_close=Callback::new(move |_| show_mapping.set(false))
           />
       </div>
   }
