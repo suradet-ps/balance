@@ -13,7 +13,10 @@ use crate::contexts::{DashboardContext, DbConfigContext};
 
 /// Props for [`AppHeader`].
 #[component]
-pub fn AppHeader(on_open_settings: Callback<()>) -> impl IntoView {
+pub fn AppHeader(
+  on_open_settings: Callback<()>,
+  #[prop(default = Callback::new(|_| {}))] on_open_mapping: Callback<()>,
+) -> impl IntoView {
   let db = expect_context::<DbConfigContext>();
   let dash = expect_context::<DashboardContext>();
 
@@ -41,6 +44,7 @@ pub fn AppHeader(on_open_settings: Callback<()>) -> impl IntoView {
   };
 
   let open_settings = move || on_open_settings.run(());
+  let open_mapping = move || on_open_mapping.run(());
 
   view! {
       <header class="app-header">
@@ -90,6 +94,11 @@ pub fn AppHeader(on_open_settings: Callback<()>) -> impl IntoView {
                   />
                   "MSSQL"
               </span>
+
+              <button class="btn btn-ghost settings-btn" on:click=move |_| open_mapping()>
+                  <Icon kind=IconKind::Link2 size=14 />
+                  "แมปยา"
+              </button>
 
               <button class="btn btn-ghost settings-btn" on:click=move |_| open_settings()>
                   <Icon kind=IconKind::Settings size=14 />

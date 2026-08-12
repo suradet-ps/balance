@@ -20,9 +20,11 @@ pub enum IconKind {
   AlertTriangle,
   Banknote,
   BarChart2,
+  Check,
   Database,
   Eye,
   EyeOff,
+  Link2,
   Package,
   Pill,
   PlugZap,
@@ -30,7 +32,9 @@ pub enum IconKind {
   Search,
   Settings,
   Settings2,
+  Upload,
   X,
+  XCircle,
 }
 
 fn shapes(kind: IconKind) -> &'static [Shape] {
@@ -51,6 +55,7 @@ fn shapes(kind: IconKind) -> &'static [Shape] {
       Shape::Path("M12 20V4"),
       Shape::Path("M6 20v-6"),
     ],
+    IconKind::Check => &[Shape::Path("M20 6 9 17l-5-5")],
     IconKind::Database => &[
       Shape::Ellipse(12.0, 5.0, 9.0, 3.0),
       Shape::Path("M3 5V19A9 3 0 0 0 21 19V5"),
@@ -65,6 +70,11 @@ fn shapes(kind: IconKind) -> &'static [Shape] {
       Shape::Path("M14.084 14.158a3 3 0 0 1-4.242-4.242"),
       Shape::Path("M17.479 17.499a10.75 10.75 0 0 1-15.417-5.151 1 1 0 0 1 0-.696 10.75 10.75 0 0 1 4.446-5.143"),
       Shape::Path("m2 2 20 20"),
+    ],
+    IconKind::Link2 => &[
+      Shape::Path("M9 17H7A5 5 0 0 1 7 7h2"),
+      Shape::Path("M15 7h2a5 5 0 1 1 0 10h-2"),
+      Shape::Path("M8 12h8"),
     ],
     IconKind::Package => &[
       Shape::Path("M11 21.73a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73z"),
@@ -99,9 +109,19 @@ fn shapes(kind: IconKind) -> &'static [Shape] {
       Shape::Circle(17.0, 17.0, 3.0),
       Shape::Circle(7.0, 7.0, 3.0),
     ],
+    IconKind::Upload => &[
+      Shape::Path("M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"),
+      Shape::Path("m17 8-5-5-5 5"),
+      Shape::Path("M12 3v12"),
+    ],
     IconKind::X => &[
       Shape::Path("M18 6 6 18"),
       Shape::Path("m6 6 12 12"),
+    ],
+    IconKind::XCircle => &[
+      Shape::Circle(12.0, 12.0, 10.0),
+      Shape::Path("m15 9-6 6"),
+      Shape::Path("m9 9 6 6"),
     ],
   }
 }

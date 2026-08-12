@@ -41,6 +41,13 @@ jobs:
       - name: Clippy
         run: cargo clippy --workspace --all-targets -- -D warnings
 
+      # Phase 1 acceptance: the local store's migrations must run against a
+      # fresh DB in CI (migrate() is exercised in-memory by the backend
+      # unit tests).  Full test coverage lands in Phase 6; this keeps the
+      # mapping engine's foundation honest from day one.
+      - name: Backend tests
+        run: cargo test -p balance
+
   frontend-build:
     name: Frontend Build (Trunk)
     runs-on: ubuntu-24.04

@@ -5,12 +5,15 @@
 
 mod hosxp;
 mod invs;
+mod mapping;
 mod settings;
+mod store;
 
 use hosxp::db::HosxpDbState;
 use invs::db::InvsDbState;
 use settings::VaultState;
 use std::sync::Arc;
+use tauri::Manager;
 use tokio::sync::Mutex;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -20,6 +23,12 @@ pub fn run() {
 
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
+        // Open + migrate the local store before the UI mounts (Phase 1).
+        .setup(|app| {
+            let store = store::open_store(app.handle()).map_err(std::io::Error::other)?;
+            app.manage(store);
+            Ok(())
+        })
         .manage(HosxpDbState::new())
         .manage(InvsDbState(Arc::new(Mutex::new(None))))
         .manage(VaultState(vault))
@@ -40,6 +49,18 @@ pub fn run() {
             invs::commands::invs_get_drug_monthly_value,
             invs::commands::invs_get_drug_list,
             invs::commands::invs_get_year_summary,
+            // Drug mapping (Phase 1) — local store + matching workflow
+            mapping::commands::mapping_status_by_icode,
+            mapping::commands::mapping_status_by_working_code,
+            mapping::commands::mapping_list_rows,
+            mapping::commands::mapping_stats,
+            mapping::commands::mapping_suggest,
+            mapping::commands::mapping_set,
+            mapping::commands::mapping_remove,
+            mapping::commands::mapping_mark_no_invs,
+            mapping::commands::mapping_unmark_no_invs,
+            mapping::commands::mapping_auto_match,
+            mapping::commands::mapping_bulk_import,
         ])
         .run(tauri::generate_context!())
         .expect("invariant: tauri context is generated at compile time and is always valid");

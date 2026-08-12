@@ -111,9 +111,100 @@ pub struct SettingsFile {
   pub invs: Option<InvsDbConfig>,
 }
 
-// ─── Unified search result ────────────────────────────────────────────
+// ─── Drug mapping (Phase 1) ─────────────────────────────────────────
 
-/// A drug autocomplete hit from either database, decoded from its wire shape.
+/// A full mapping link between HOSxP (`icode`) and INVS (`working_code`).
+///
+/// Some fields (`match_method`, `match_score`, both names) are part of the
+/// wire contract for the future reconciliation views (Phase 2) but are not
+/// yet rendered — they stay deserializable rather than being dropped.
+#[derive(Clone, Debug, Deserialize)]
+#[allow(dead_code)]
+pub struct MappingLink {
+  pub icode: String,
+  pub working_code: String,
+  pub drug_name_hosxp: String,
+  pub drug_name_invs: String,
+  pub match_method: String,
+  pub match_score: Option<f64>,
+}
+
+/// The resolved state of one drug on either side (`mapping_status_by_icode` /
+/// `mapping_status_by_working_code`).
+#[derive(Clone, Debug, Deserialize)]
+pub struct DrugMappingStatus {
+  /// `mapped` | `no_invs` | `unmapped`
+  pub status: String,
+  pub link: Option<MappingLink>,
+  /// Exclusion reason when `status == "no_invs"`.
+  pub reason: Option<String>,
+}
+
+/// One HOSxP row in the mapping list view.
+#[derive(Clone, Debug, Deserialize)]
+pub struct MappingRow {
+  pub icode: String,
+  pub drug_name: String,
+  /// `mapped` | `no_invs` | `unmapped`
+  pub status: String,
+  pub working_code: Option<String>,
+  pub no_invs_reason: Option<String>,
+}
+
+/// A scored INVS candidate for a HOSxP drug.
+#[derive(Clone, Debug, Deserialize)]
+pub struct MappingCandidate {
+  pub working_code: String,
+  pub drug_name: String,
+  pub score: f64,
+}
+
+/// One entry of the batch auto-match result.
+#[derive(Clone, Debug, Deserialize)]
+pub struct AutoMatchPreview {
+  pub icode: String,
+  pub drug_name: String,
+  pub working_code: String,
+  pub drug_name_invs: String,
+  pub score: f64,
+}
+
+/// Batch auto-match result (`to_match` is the preview, `applied` counts
+/// written links when not a dry run).
+#[derive(Clone, Debug, Deserialize)]
+pub struct AutoMatchResult {
+  pub to_match: Vec<AutoMatchPreview>,
+  pub applied: usize,
+}
+
+/// A bulk-import row that conflicts with an existing mapping.
+#[derive(Clone, Debug, Deserialize)]
+pub struct BulkConflict {
+  pub line: usize,
+  pub icode: String,
+  pub working_code: String,
+  pub existing: String,
+}
+
+/// Bulk-import outcome / preview.
+#[derive(Clone, Debug, Deserialize)]
+pub struct BulkImportResult {
+  pub total: usize,
+  pub added: usize,
+  pub conflicts: Vec<BulkConflict>,
+  pub skipped: usize,
+  pub errors: Vec<String>,
+}
+
+/// Headline counts for the mapping view header.
+#[derive(Clone, Debug, Deserialize)]
+pub struct MappingStats {
+  pub total: u64,
+  pub by_method: std::collections::HashMap<String, u64>,
+  pub exclusions: u64,
+}
+
+// ─── Unified search result ────────────────────────────────────────────/// A drug autocomplete hit from either database, decoded from its wire shape.
 #[derive(Clone, Debug, Deserialize)]
 #[serde(untagged)]
 pub enum DrugResult {
