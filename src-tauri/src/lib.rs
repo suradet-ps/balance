@@ -5,6 +5,7 @@
 
 mod hosxp;
 mod invs;
+mod mapping;
 mod settings;
 mod store;
 
