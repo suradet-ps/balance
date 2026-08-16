@@ -7,6 +7,7 @@ mod fiscal;
 mod hosxp;
 mod invs;
 mod mapping;
+mod reconcile;
 mod settings;
 mod store;
 
