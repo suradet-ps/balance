@@ -33,6 +33,8 @@ comparable):
 1. lowercase;
 2. parenthesized *dose* content is dropped — `(500 mg)` goes away, while
    `(พาราเซตามอล)` is kept because it is a translation, not a strength;
+   a paren that mixes both — `(แอมม็อกซิซิลลิน 500 มก.)` — keeps the
+   translation and drops the dose tokens;
 3. Thai spelling variants unified: `รร` → `ร`, `รา` → `ร` (when followed by
    a consonant or end-of-word — so `ธารา`/`ธาร` and `การันต์`/`กรนต์`
    collide, but `พาราเซตามอล` keeps its `รา`), `รึ` → `ริ`;
@@ -40,7 +42,9 @@ comparable):
    boundaries (Latin ↔ Thai) — `amoxicillin500mg` and
    `Paracetamol(พาราเซตามอล)` both tokenize cleanly;
 5. pure numbers and dose/unit/dosage-form tokens are dropped (`mg`, `มก.`,
-   `tablet`, `เม็ด`, `แคปซูล`, … — see `DOSE_TOKENS` in the source);
+   `tablet`, `เม็ด`, `แคปซูล`, … — see `DOSE_TOKENS` in the source); Thai
+   numerals (`๐`–`๙`) count as digits here, so `500 มก.` and `๕๐๐ มก.`
+   normalize identically;
 6. the surviving tokens are sorted and deduped: the normalized output is a
    canonical token set, so `Paracetamol (พาราเซตามอล)` and
    `พาราเซตามอล paracetamol` are equal.

@@ -796,18 +796,29 @@ fn BulkPreviewSummary() -> impl IntoView {
               <div class="bulk-conflicts">
                   <div class="bulk-subtitle">"รายการขัดแย้ง (ต้องแมปด้วยมือ):"</div>
                   <For
-                      each=move || mapping.bulk_preview.get().map_or(Vec::new(), |p| p.conflicts)
-                      key=|c| c.icode.clone()
+                      each=move || {
+                          mapping
+                              .bulk_preview
+                              .get()
+                              .map_or(Vec::new(), |p| {
+                                  p.conflicts
+                                      .iter()
+                                      .enumerate()
+                                      .map(|(i, c)| (i, c.clone()))
+                                      .collect()
+                              })
+                      }
+                      key=|(i, _)| *i
                       let:c
                   >
                       <div class="bulk-conflict-row">
-                          <span class="drug-code font-mono">{c.icode.clone()}</span>
+                          <span class="drug-code font-mono">{c.1.icode.clone()}</span>
                           "→ "
-                          <span class="drug-code font-mono">{c.working_code.clone()}</span>
+                          <span class="drug-code font-mono">{c.1.working_code.clone()}</span>
                           " (เดิม: "
-                          <span class="drug-code font-mono">{c.existing.clone()}</span>
+                          <span class="drug-code font-mono">{c.1.existing.clone()}</span>
                           ") — บรรทัด "
-                          {c.line}
+                          {c.1.line}
                       </div>
                   </For>
               </div>
@@ -816,11 +827,18 @@ fn BulkPreviewSummary() -> impl IntoView {
               <div class="bulk-errors">
                   <div class="bulk-subtitle">"ข้อผิดพลาด:"</div>
                   <For
-                      each=move || mapping.bulk_preview.get().map_or(Vec::new(), |p| p.errors)
-                      key=|e| e.clone()
+                      each=move || {
+                          mapping
+                              .bulk_preview
+                              .get()
+                              .map_or(Vec::new(), |p| {
+                                  p.errors.iter().enumerate().map(|(i, e)| (i, e.clone())).collect()
+                              })
+                      }
+                      key=|(i, _)| *i
                       let:e
                   >
-                      <div class="bulk-error-row">{e}</div>
+                      <div class="bulk-error-row">{e.1}</div>
                   </For>
               </div>
           </Show>
