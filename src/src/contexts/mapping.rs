@@ -11,7 +11,7 @@
 use leptos::prelude::*;
 use wasm_bindgen::JsValue;
 
-use crate::contexts::DashboardContext;
+use crate::contexts::{DashboardContext, DbConfigContext};
 use crate::models::{
   AutoMatchResult, BulkImportResult, DrugMappingStatus, InvsDrugItem, MappingCandidate, MappingRow,
   MappingStats,
@@ -76,6 +76,16 @@ pub struct DetailSession {
 /// be passed to child components by value.
 #[derive(Clone, Copy, Debug)]
 pub struct MappingContext {
+  /// The dashboard context, captured at `provide()` time.
+  ///
+  /// `expect_context` must never run inside a `spawn_local` task: Leptos's
+  /// `spawn_local` does not inherit the reactive owner, so the lookup
+  /// panics.  Holding the contexts here (captured synchronously during
+  /// `provide()`, where the owner chain is intact) lets every async method
+  /// use them without a lookup.
+  dash: DashboardContext,
+  /// The DB-connection context, captured at `provide()` time (see above).
+  db: DbConfigContext,
   /// HOSxP rows of the current list view (with mapping state).
   pub rows: RwSignal<Vec<MappingRow>>,
   /// Whether a list fetch is in flight.
@@ -114,9 +124,15 @@ pub struct MappingContext {
 
 impl MappingContext {
   /// Create the signals, register them in context, and return the handle.
+  ///
+  /// Must be called while the dashboard and DB contexts are already
+  /// provided (App does `DashboardContext::provide()` → `DbConfigContext::provide()`
+  /// → `MappingContext::provide()`), so they can be captured here.
   #[must_use]
   pub fn provide() -> Self {
     let ctx = Self {
+      dash: expect_context::<DashboardContext>(),
+      db: expect_context::<DbConfigContext>(),
       rows: RwSignal::new(Vec::new()),
       rows_loading: RwSignal::new(false),
       search_gen: RwSignal::new(0u64),
@@ -210,7 +226,7 @@ impl MappingContext {
 
   /// Refresh the panel chips for the currently selected drugs.
   pub async fn refresh_links(self) {
-    let dash = expect_context::<DashboardContext>();
+    let dash = self.dash;
     if let Some(icode) = dash.hosxp_selected_icode.get_untracked() {
       match commands::mapping_status_by_icode(&icode).await {
         Ok(status) => self.hosxp_link.set(Some(status)),
@@ -236,9 +252,8 @@ impl MappingContext {
   /// search box, and load its chart.  A no-op for unmapped drugs (the
   /// other panel keeps whatever it was showing).
   pub async fn follow_link_to_invs(self, year: i32, icode: &str) {
-    let dash = expect_context::<DashboardContext>();
-    let db = expect_context::<crate::contexts::DbConfigContext>();
-    if !db.invs_connected.get_untracked() {
+    let dash = self.dash;
+    if !self.db.invs_connected.get_untracked() {
       return;
     }
     let Ok(status) = commands::mapping_status_by_icode(icode).await else {
@@ -257,9 +272,8 @@ impl MappingContext {
 
   /// Mirror of [`Self::follow_link_to_invs`] for an INVS selection.
   pub async fn follow_link_to_hosxp(self, year: i32, working_code: &str) {
-    let dash = expect_context::<DashboardContext>();
-    let db = expect_context::<crate::contexts::DbConfigContext>();
-    if !db.hosxp_connected.get_untracked() {
+    let dash = self.dash;
+    if !self.db.hosxp_connected.get_untracked() {
       return;
     }
     let Ok(status) = commands::mapping_status_by_working_code(working_code).await else {
