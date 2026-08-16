@@ -44,6 +44,7 @@ pub fn run() {
             hosxp::commands::hosxp_get_top_drugs,
             hosxp::commands::hosxp_get_drug_monthly_qty,
             hosxp::commands::hosxp_get_drug_list,
+            hosxp::commands::hosxp_get_year_summary,
             // INVS (SQL Server) commands
             invs::commands::invs_connect,
             invs::commands::invs_get_available_years,

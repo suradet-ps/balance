@@ -42,6 +42,13 @@ pub struct InvsDrugMonthlyValue {
   pub monthly_value: Vec<f64>,
 }
 
+/// Grand totals from `hosxp_get_year_summary` (fiscal year, KPI bar).
+#[derive(Clone, Debug, Deserialize)]
+pub struct HosxpYearSummary {
+  pub total_qty: f64,
+  pub unique_drug_count: i32,
+}
+
 /// Grand totals from `invs_get_year_summary`.
 #[derive(Clone, Debug, Deserialize)]
 pub struct InvsYearSummary {

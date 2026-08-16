@@ -31,6 +31,16 @@ pub struct DrugItem {
     pub name: String,
 }
 
+/// Fiscal-year grand totals for the KPI bar (mirror of the INVS
+/// `YearSummary`, on the dispensed side).
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct YearSummary {
+    /// Total dispensed quantity for the fiscal year.
+    pub total_qty: f64,
+    /// Distinct drugs dispensed in the fiscal year.
+    pub unique_drug_count: i32,
+}
+
 // ─── Row helpers ──────────────────────────────────────────────────────────
 
 fn col_string(row: &sqlx::mysql::MySqlRow, col: &str) -> String {
@@ -298,6 +308,36 @@ pub(crate) async fn fetch_monthly_qty(
     });
 
     Ok(result)
+}
+
+/// Fiscal-year grand totals for the KPI bar: total dispensed quantity and
+/// distinct drug count (both sides of the bar are now symmetric).
+#[tauri::command]
+pub async fn hosxp_get_year_summary(year: i32) -> Result<YearSummary, String> {
+    with_pool(move |pool| {
+        Box::pin(async move {
+            let (start_date, end_date) = crate::fiscal::fiscal_mysql_window(year);
+            let row = sqlx::query(
+                r#"
+                SELECT
+                    CAST(SUM(o.qty) AS DOUBLE) AS total_qty,
+                    COUNT(DISTINCT o.icode)   AS unique_drug_count
+                FROM opitemrece o
+                WHERE o.vstdate >= ? AND o.vstdate < ?
+                "#,
+            )
+            .bind(&start_date)
+            .bind(&end_date)
+            .fetch_one(pool)
+            .await?;
+
+            Ok::<YearSummary, sqlx::Error>(YearSummary {
+                total_qty: col_f64(&row, "total_qty"),
+                unique_drug_count: col_u32(&row, "unique_drug_count") as i32,
+            })
+        })
+    })
+    .await
 }
 
 /// Search drugitems by icode prefix or name substring.

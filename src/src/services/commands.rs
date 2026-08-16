@@ -11,8 +11,8 @@ use wasm_bindgen::JsValue;
 use super::tauri::{build_args, invoke};
 use crate::models::{
   AutoMatchResult, BackendError, BulkImportResult, DrugMappingStatus, HosxpDbConfig, HosxpDrugItem,
-  HosxpDrugMonthly, InvsDbConfig, InvsDrugItem, InvsDrugMonthlyValue, InvsYearSummary,
-  MappingCandidate, MappingRow, MappingStats, ReconcileReport, SettingsFile,
+  HosxpDrugMonthly, HosxpYearSummary, InvsDbConfig, InvsDrugItem, InvsDrugMonthlyValue,
+  InvsYearSummary, MappingCandidate, MappingRow, MappingStats, ReconcileReport, SettingsFile,
 };
 
 fn arg<T: Serialize>(value: &T) -> JsValue {
@@ -52,6 +52,14 @@ pub async fn hosxp_get_drug_monthly_qty(
 pub async fn hosxp_get_drug_list(search: &str) -> Result<Vec<HosxpDrugItem>, BackendError> {
   let args = build_args(&[("search", &JsValue::from_str(search))]);
   invoke::<Vec<HosxpDrugItem>>("hosxp_get_drug_list", &args)
+    .await
+    .map_err(BackendError::from_js)
+}
+
+/// Fetch the fiscal-year dispensing grand totals.
+pub async fn hosxp_get_year_summary(year: i32) -> Result<HosxpYearSummary, BackendError> {
+  let args = build_args(&[("year", &JsValue::from(year))]);
+  invoke::<HosxpYearSummary>("hosxp_get_year_summary", &args)
     .await
     .map_err(BackendError::from_js)
 }

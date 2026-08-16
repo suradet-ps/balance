@@ -25,7 +25,6 @@ pub enum IconKind {
   Eye,
   EyeOff,
   Link2,
-  Package,
   Pill,
   PlugZap,
   Save,
@@ -75,12 +74,6 @@ fn shapes(kind: IconKind) -> &'static [Shape] {
       Shape::Path("M9 17H7A5 5 0 0 1 7 7h2"),
       Shape::Path("M15 7h2a5 5 0 1 1 0 10h-2"),
       Shape::Path("M8 12h8"),
-    ],
-    IconKind::Package => &[
-      Shape::Path("M11 21.73a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73z"),
-      Shape::Path("M12 22V12"),
-      Shape::Path("M3.29 7 12 12l8.71-5.73"),
-      Shape::Path("m7.5 4.27 9 5.15"),
     ],
     IconKind::Pill => &[
       Shape::Path("m10.5 20.5 10-10a4.95 4.95 0 1 0-7-7l-10 10a4.95 4.95 0 1 0 7 7Z"),

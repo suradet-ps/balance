@@ -100,11 +100,13 @@ pub fn App() -> impl IntoView {
   });
 
   // Boot: load persisted settings (auto-connects), then let the connect
-  // watcher above trigger the first refresh.
+  // watcher above trigger the first refresh.  Mapping stats are loaded too
+  // so the KPI bar's mapping card has numbers without opening the view.
   let root_ref = NodeRef::<Div>::new();
   root_ref.on_load(move |_root| {
     spawn_local(async move {
       db.init_from_storage().await;
+      let _ = mapping.load_stats().await;
     });
   });
 

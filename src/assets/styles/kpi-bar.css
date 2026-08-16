@@ -48,6 +48,11 @@
   color: var(--green);
 }
 
+.kpi-icon--link {
+  background: var(--primary-subtle);
+  color: var(--primary-dark);
+}
+
 .kpi-body {
   display: flex;
   flex-direction: column;
@@ -74,12 +79,22 @@
 
 .value-hosxp { color: var(--primary); }
 .value-invs { color: var(--green); }
+.value-link { color: var(--primary-dark); }
 .kpi-na { color: var(--text-muted); }
 
 .kpi-unit {
   font-size: 11px;
   font-weight: 500;
   color: var(--text-secondary);
+}
+
+.kpi-sub {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .kpi-divider {
