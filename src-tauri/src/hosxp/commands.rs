@@ -11,7 +11,8 @@ use std::collections::HashMap;
 pub struct DrugMonthlyData {
     pub icode: String,
     pub drug_name: String,
-    /// 12-element vec; index 0 = January.
+    /// 12-element vec in **Thai fiscal order** (index 0 = ต.ค. … 11 = ก.ย.),
+    /// aligned with the INVS side so both panels share one axis.
     pub monthly_qty: Vec<f64>,
     pub total_qty: f64,
 }
@@ -28,6 +29,16 @@ pub struct DrugSummary {
 pub struct DrugItem {
     pub icode: String,
     pub name: String,
+}
+
+/// Fiscal-year grand totals for the KPI bar (mirror of the INVS
+/// `YearSummary`, on the dispensed side).
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct YearSummary {
+    /// Total dispensed quantity for the fiscal year.
+    pub total_qty: f64,
+    /// Distinct drugs dispensed in the fiscal year.
+    pub unique_drug_count: i32,
 }
 
 // ─── Row helpers ──────────────────────────────────────────────────────────
@@ -85,19 +96,30 @@ pub async fn hosxp_connect(config: HosxpDbConfig) -> Result<(), String> {
     init_pool(config).await
 }
 
-/// Fetch distinct years present in opitemrece.vstdate, newest first.
+/// Fetch distinct **fiscal years** present in opitemrece.vstdate, newest
+/// first (FY N = 1 Oct of N−1 … 30 Sep of N — same definition as the INVS
+/// side, so the dropdown is a single consistent fiscal axis).
 #[tauri::command]
 pub async fn hosxp_get_available_years() -> Result<Vec<i32>, String> {
     with_pool(|pool| {
         Box::pin(async move {
-            let rows =
-                sqlx::query("SELECT DISTINCT YEAR(vstdate) AS yr FROM opitemrece ORDER BY yr DESC")
-                    .fetch_all(pool)
-                    .await?;
+            let rows = sqlx::query(
+                r#"
+                SELECT DISTINCT
+                    CASE
+                        WHEN MONTH(vstdate) >= 10 THEN YEAR(vstdate) + 1
+                        ELSE YEAR(vstdate)
+                    END AS fiscal_year
+                FROM opitemrece
+                ORDER BY fiscal_year DESC
+                "#,
+            )
+            .fetch_all(pool)
+            .await?;
 
             let years: Vec<i32> = rows
                 .iter()
-                .map(|r| col_u32(r, "yr") as i32)
+                .map(|r| col_u32(r, "fiscal_year") as i32)
                 .filter(|&y| y > 0)
                 .collect();
 
@@ -107,11 +129,12 @@ pub async fn hosxp_get_available_years() -> Result<Vec<i32>, String> {
     .await
 }
 
-/// Fetch top-N drugs by total dispensed quantity in a year.
+/// Fetch top-N drugs by total dispensed quantity in a **fiscal year**.
 #[tauri::command]
 pub async fn hosxp_get_top_drugs(year: i32, limit: u8) -> Result<Vec<DrugSummary>, String> {
     with_pool(move |pool| {
         Box::pin(async move {
+            let (start_date, end_date) = crate::fiscal::fiscal_mysql_window(year);
             // Step 1: totals only
             let total_rows = sqlx::query(
                 r#"
@@ -121,13 +144,14 @@ pub async fn hosxp_get_top_drugs(year: i32, limit: u8) -> Result<Vec<DrugSummary
                     CAST(SUM(o.qty) AS DOUBLE)        AS total_qty
                 FROM opitemrece o
                 LEFT JOIN drugitems d ON d.icode = o.icode
-                WHERE YEAR(o.vstdate) = ?
+                WHERE o.vstdate >= ? AND o.vstdate < ?
                 GROUP BY o.icode, d.name
                 ORDER BY total_qty DESC
                 LIMIT ?
                 "#,
             )
-            .bind(year)
+            .bind(&start_date)
+            .bind(&end_date)
             .bind(limit as i64)
             .fetch_all(pool)
             .await?;
@@ -147,14 +171,14 @@ pub async fn hosxp_get_top_drugs(year: i32, limit: u8) -> Result<Vec<DrugSummary
                     MONTH(o.vstdate)             AS month,
                     CAST(SUM(o.qty) AS DOUBLE)   AS qty
                 FROM opitemrece o
-                WHERE YEAR(o.vstdate) = ?
+                WHERE o.vstdate >= ? AND o.vstdate < ?
                   AND o.icode IN ({})
                 GROUP BY o.icode, MONTH(o.vstdate)
                 "#,
                 placeholders
             );
 
-            let mut q = sqlx::query(&monthly_sql).bind(year);
+            let mut q = sqlx::query(&monthly_sql).bind(&start_date).bind(&end_date);
             for ic in &icodes {
                 q = q.bind(ic.as_str());
             }
@@ -208,64 +232,109 @@ pub async fn hosxp_get_top_drugs(year: i32, limit: u8) -> Result<Vec<DrugSummary
     .await
 }
 
-/// Get monthly dispensing quantities for a specific drug.
+/// Get monthly dispensing quantities for a specific drug (**fiscal order**,
+/// fiscal-year window).
 #[tauri::command]
 pub async fn hosxp_get_drug_monthly_qty(
     year: i32,
     icode: String,
 ) -> Result<Vec<DrugMonthlyData>, String> {
+    with_pool(move |pool| Box::pin(async move { fetch_monthly_qty(pool, year, &icode).await }))
+        .await
+}
+
+/// The monthly dispensing query behind [`hosxp_get_drug_monthly_qty`],
+/// shared with the reconciliation command (which needs the same series).
+pub(crate) async fn fetch_monthly_qty(
+    pool: &sqlx::MySqlPool,
+    year: i32,
+    icode: &str,
+) -> Result<Vec<DrugMonthlyData>, sqlx::Error> {
+    let (start_date, end_date) = crate::fiscal::fiscal_mysql_window(year);
+    let rows = sqlx::query(
+        r#"
+        SELECT STRAIGHT_JOIN
+            o.icode                      AS icode,
+            COALESCE(d.name, o.icode)    AS drug_name,
+            MONTH(o.vstdate)             AS month,
+            CAST(SUM(o.qty) AS DOUBLE)   AS total_qty
+        FROM opitemrece o
+        LEFT JOIN drugitems d ON d.icode = o.icode
+        WHERE o.vstdate >= ? AND o.vstdate < ?
+          AND o.icode = ?
+        GROUP BY o.icode, d.name, MONTH(o.vstdate)
+        ORDER BY month
+        "#,
+    )
+    .bind(&start_date)
+    .bind(&end_date)
+    .bind(icode)
+    .fetch_all(pool)
+    .await?;
+
+    let mut map: HashMap<String, DrugMonthlyData> = HashMap::new();
+    for row in &rows {
+        let ic = col_string(row, "icode");
+        let dn = {
+            let v = col_string(row, "drug_name");
+            if v.is_empty() { ic.clone() } else { v }
+        };
+        let mo = col_u32(row, "month");
+        let qty = col_f64(row, "total_qty");
+
+        let entry = map.entry(ic.clone()).or_insert_with(|| DrugMonthlyData {
+            icode: ic.clone(),
+            drug_name: dn,
+            monthly_qty: vec![0.0; 12],
+            total_qty: 0.0,
+        });
+        if (1..=12).contains(&mo) {
+            entry.monthly_qty[(mo - 1) as usize] = qty;
+            entry.total_qty += qty;
+        }
+    }
+
+    let mut result: Vec<DrugMonthlyData> = map.into_values().collect();
+    for data in &mut result {
+        // Calendar buckets (Jan..Dec) → Thai fiscal buckets (ต.ค..ก.ย.)
+        // so both panels plot the same 12 fiscal months side by side.
+        data.monthly_qty =
+            crate::fiscal::reorder_calendar_to_fiscal(std::mem::take(&mut data.monthly_qty));
+    }
+    result.sort_by(|a, b| {
+        b.total_qty
+            .partial_cmp(&a.total_qty)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
+
+    Ok(result)
+}
+
+/// Fiscal-year grand totals for the KPI bar: total dispensed quantity and
+/// distinct drug count (both sides of the bar are now symmetric).
+#[tauri::command]
+pub async fn hosxp_get_year_summary(year: i32) -> Result<YearSummary, String> {
     with_pool(move |pool| {
         Box::pin(async move {
-            let rows = sqlx::query(
+            let (start_date, end_date) = crate::fiscal::fiscal_mysql_window(year);
+            let row = sqlx::query(
                 r#"
-                SELECT STRAIGHT_JOIN
-                    o.icode                      AS icode,
-                    COALESCE(d.name, o.icode)    AS drug_name,
-                    MONTH(o.vstdate)             AS month,
-                    CAST(SUM(o.qty) AS DOUBLE)   AS total_qty
+                SELECT
+                    CAST(SUM(o.qty) AS DOUBLE) AS total_qty,
+                    COUNT(DISTINCT o.icode)   AS unique_drug_count
                 FROM opitemrece o
-                LEFT JOIN drugitems d ON d.icode = o.icode
-                WHERE YEAR(o.vstdate) = ?
-                  AND o.icode = ?
-                GROUP BY o.icode, d.name, MONTH(o.vstdate)
-                ORDER BY month
+                WHERE o.vstdate >= ? AND o.vstdate < ?
                 "#,
             )
-            .bind(year)
-            .bind(icode.as_str())
-            .fetch_all(pool)
+            .bind(&start_date)
+            .bind(&end_date)
+            .fetch_one(pool)
             .await?;
 
-            let mut map: HashMap<String, DrugMonthlyData> = HashMap::new();
-            for row in &rows {
-                let ic = col_string(row, "icode");
-                let dn = {
-                    let v = col_string(row, "drug_name");
-                    if v.is_empty() { ic.clone() } else { v }
-                };
-                let mo = col_u32(row, "month");
-                let qty = col_f64(row, "total_qty");
-
-                let entry = map.entry(ic.clone()).or_insert_with(|| DrugMonthlyData {
-                    icode: ic.clone(),
-                    drug_name: dn,
-                    monthly_qty: vec![0.0; 12],
-                    total_qty: 0.0,
-                });
-                if (1..=12).contains(&mo) {
-                    entry.monthly_qty[(mo - 1) as usize] = qty;
-                    entry.total_qty += qty;
-                }
-            }
-
-            let mut result: Vec<DrugMonthlyData> = map.into_values().collect();
-            result.sort_by(|a, b| {
-                b.total_qty
-                    .partial_cmp(&a.total_qty)
-                    .unwrap_or(std::cmp::Ordering::Equal)
-            });
-
-            Ok::<Vec<DrugMonthlyData>, sqlx::Error>(result)
+            Ok::<YearSummary, sqlx::Error>(YearSummary {
+                total_qty: col_f64(&row, "total_qty"),
+                unique_drug_count: col_u32(&row, "unique_drug_count") as i32,
+            })
         })
     })
     .await

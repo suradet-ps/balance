@@ -3,9 +3,11 @@
 //! Wires up the plugin stack, registers IPC command handlers for both
 //! HOSxP (MySQL) and INVS (SQL Server) backends.
 
+mod fiscal;
 mod hosxp;
 mod invs;
 mod mapping;
+mod reconcile;
 mod settings;
 mod store;
 
@@ -42,6 +44,7 @@ pub fn run() {
             hosxp::commands::hosxp_get_top_drugs,
             hosxp::commands::hosxp_get_drug_monthly_qty,
             hosxp::commands::hosxp_get_drug_list,
+            hosxp::commands::hosxp_get_year_summary,
             // INVS (SQL Server) commands
             invs::commands::invs_connect,
             invs::commands::invs_get_available_years,
@@ -61,6 +64,8 @@ pub fn run() {
             mapping::commands::mapping_unmark_no_invs,
             mapping::commands::mapping_auto_match,
             mapping::commands::mapping_bulk_import,
+            // Reconciliation (Phase 2)
+            reconcile::commands::reconcile_drug,
         ])
         .run(tauri::generate_context!())
         .expect("invariant: tauri context is generated at compile time and is always valid");

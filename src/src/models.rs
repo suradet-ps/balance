@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 // ─── HOSxP (MySQL) types ──────────────────────────────────────────────
 
 /// 12-month breakdown from `hosxp_get_drug_monthly_qty`
-/// (`monthly_qty` index 0 = January, calendar order).
+/// (`monthly_qty` index 0 = ต.ค. — fiscal order, same axis as the INVS panel).
 #[derive(Clone, Debug, Deserialize)]
 pub struct HosxpDrugMonthly {
   pub icode: String,
@@ -40,6 +40,13 @@ pub struct InvsDrugMonthlyValue {
   pub monthly_qty: Vec<f64>,
   pub total_qty: f64,
   pub monthly_value: Vec<f64>,
+}
+
+/// Grand totals from `hosxp_get_year_summary` (fiscal year, KPI bar).
+#[derive(Clone, Debug, Deserialize)]
+pub struct HosxpYearSummary {
+  pub total_qty: f64,
+  pub unique_drug_count: i32,
 }
 
 /// Grand totals from `invs_get_year_summary`.
@@ -232,6 +239,61 @@ impl DrugResult {
   }
 }
 
+// ─── Reconciliation (Phase 2) ───────────────────────────────────────
+
+/// The reconciled view of one mapped drug for one fiscal year
+/// (`reconcile_drug`).
+#[derive(Clone, Debug, Deserialize)]
+pub struct ReconcileReport {
+  pub icode: String,
+  pub working_code: String,
+  pub drug_name_hosxp: String,
+  pub drug_name_invs: String,
+  pub reconciliation: Reconciliation,
+}
+
+/// The pure engine's output for one drug/year.
+#[derive(Clone, Debug, Deserialize)]
+pub struct Reconciliation {
+  /// HOSxP dispensed quantity per fiscal month.
+  pub dispensed_qty: Vec<f64>,
+  /// INVS purchased quantity per fiscal month.
+  pub purchased_qty: Vec<f64>,
+  /// INVS purchase value (THB) per fiscal month.
+  pub purchased_value: Vec<f64>,
+  /// Yearly unit price = Σ purchase value ÷ Σ dispensed qty — the cost per
+  /// dispensed unit; `None` = nothing dispensed.
+  pub unit_price_year: Option<f64>,
+  /// Monthly *purchase* price on purchase months only (value ÷ qty);
+  /// `None` where nothing was bought.
+  pub purchase_price_month: Vec<Option<f64>>,
+  /// The cumulative stock curve (running sum of the deltas); index 11 is
+  /// the implied stock at year end.
+  pub cumulative_deltas: Vec<f64>,
+  /// Σ dispensed ÷ Σ purchased; `None` when nothing was purchased.
+  pub coverage_ratio: Option<f64>,
+  /// Coefficient of variation of the dispensed quantities.
+  pub cv_dispensed_qty: Option<f64>,
+  /// Coefficient of variation of the purchase values.
+  pub cv_purchased_value: Option<f64>,
+  pub flags: Vec<DiscrepancyFlag>,
+}
+
+/// One discrepancy flag; `kind` is a stable kebab-case string
+/// (`zero-use-full-purchase`, `dispensed-without-purchase`,
+/// `unit-price-spike`, `year-end-stock-gap`), `month` is the fiscal index
+/// (0 = ต.ค., `None` = whole year).
+#[derive(Clone, Debug, Deserialize)]
+pub struct DiscrepancyFlag {
+  pub kind: String,
+  pub month: Option<usize>,
+  /// `overstock` / `overuse` for `year-end-stock-gap`.
+  pub gap: Option<String>,
+  pub dispensed_qty: f64,
+  pub purchased_qty: f64,
+  pub purchased_value: f64,
+}
+
 // ─── Backend error ────────────────────────────────────────────────────
 
 /// A rejected Tauri command.  The backend commands return `Result<_, String>`,
@@ -289,8 +351,8 @@ impl ChartSeries {
     }
   }
 
-  /// The 12 monthly values, i.e. what the chart plots
-  /// (calendar order for HOSxP, fiscal for INVS; INVS plots `QTY_ORDER`).
+  /// The 12 monthly values, i.e. what the chart plots (fiscal order
+  /// ต.ค.–ก.ย. on both sides; INVS plots `QTY_ORDER`).
   #[must_use]
   pub fn values(&self) -> &[f64] {
     match self {
@@ -318,11 +380,11 @@ impl ChartSeries {
     }
   }
 
-  /// The x-axis month labels (calendar Thai months for HOSxP, fiscal for INVS).
+  /// The x-axis month labels — the same fiscal labels on both panels.
   #[must_use]
   pub fn months(&self) -> &'static [&'static str; 12] {
     match self {
-      Self::Hosxp(_) => &THAI_MONTHS_SHORT,
+      Self::Hosxp(_) => &FISCAL_MONTHS_SHORT,
       Self::Invs(_) => &FISCAL_MONTHS_SHORT,
     }
   }
@@ -330,23 +392,8 @@ impl ChartSeries {
 
 // ─── Fiscal year utilities ────────────────────────────────────────────
 
-/// Calendar month arrays (index 0 = January).
-pub const THAI_MONTHS_SHORT: [&str; 12] = [
-  "ม.ค.",
-  "ก.พ.",
-  "มี.ค.",
-  "เม.ย.",
-  "พ.ค.",
-  "มิ.ย.",
-  "ก.ค.",
-  "ส.ค.",
-  "ก.ย.",
-  "ต.ค.",
-  "พ.ย.",
-  "ธ.ค.",
-];
-
-/// Fiscal month arrays (index 0 = fiscal month 1 = ต.ค.).
+/// Fiscal month arrays (index 0 = fiscal month 1 = ต.ค.).  Both panels plot
+/// the same fiscal axis, so this is the only month label set the UI needs.
 pub const FISCAL_MONTHS_SHORT: [&str; 12] = [
   "ต.ค.",
   "พ.ย.",
@@ -445,7 +492,6 @@ mod tests {
 
   #[wasm_bindgen_test]
   fn month_arrays_have_twelve_entries() {
-    assert_eq!(THAI_MONTHS_SHORT.len(), 12);
     assert_eq!(FISCAL_MONTHS_SHORT.len(), 12);
   }
 
@@ -477,7 +523,7 @@ mod tests {
     assert_eq!(hosxp.name(), "พารา");
     assert_eq!(hosxp.total(), 42.0);
     assert!(hosxp.aux_values().is_empty());
-    assert_eq!(hosxp.months()[0], "ม.ค.");
+    assert_eq!(hosxp.months()[0], "ต.ค.");
 
     let invs = ChartSeries::Invs(InvsDrugMonthlyValue {
       working_code: "A1".to_owned(),

@@ -8,7 +8,9 @@
 use leptos::prelude::*;
 use wasm_bindgen::JsValue;
 
-use crate::models::{current_fiscal_year, ChartSeries, DrugResult, InvsYearSummary, Side};
+use crate::models::{
+  current_fiscal_year, ChartSeries, DrugResult, HosxpYearSummary, InvsYearSummary, Side,
+};
 use crate::services::commands;
 
 /// Log a swallowed backend error (the original composables `console.error`).
@@ -35,6 +37,8 @@ pub struct DashboardContext {
   pub hosxp_chart_data: RwSignal<Option<ChartSeries>>,
   /// Whether a HOSxP chart fetch is in flight (shows that side's skeleton).
   pub hosxp_loading_chart: RwSignal<bool>,
+  /// HOSxP fiscal-year grand totals (or `None`).
+  pub hosxp_year_summary: RwSignal<Option<HosxpYearSummary>>,
   /// Years available from INVS, newest first.
   pub invs_years: RwSignal<Vec<i32>>,
   /// Working code of the drug currently selected on the INVS side.
@@ -65,6 +69,7 @@ impl DashboardContext {
       hosxp_search_display: RwSignal::new(String::new()),
       hosxp_chart_data: RwSignal::new(None),
       hosxp_loading_chart: RwSignal::new(false),
+      hosxp_year_summary: RwSignal::new(None),
       invs_years: RwSignal::new(Vec::new()),
       invs_selected_code: RwSignal::new(None),
       invs_search_display: RwSignal::new(String::new()),
@@ -144,6 +149,20 @@ impl DashboardContext {
       self.hosxp_loading_chart.set(false);
     }
     result
+  }
+
+  /// Fetch the HOSxP yearly summary, store it, and return it.
+  pub async fn fetch_hosxp_year_summary(self, year: i32) -> Option<HosxpYearSummary> {
+    match commands::hosxp_get_year_summary(year).await {
+      Ok(summary) => {
+        self.hosxp_year_summary.set(Some(summary.clone()));
+        Some(summary)
+      }
+      Err(e) => {
+        log_err("HOSxP fetchYearSummary", &e.message);
+        None
+      }
+    }
   }
 
   /// Search HOSxP drugs by code / name.
@@ -235,11 +254,15 @@ impl DashboardContext {
 
   // ── Combined refresh ──────────────────────────────────────────────
 
-  /// Refresh the HOSxP side: the selected drug's chart.
+  /// Refresh the HOSxP side: the yearly summary + the selected drug's chart.
   pub async fn refresh_hosxp(self, year: i32) {
-    if let Some(icode) = self.hosxp_selected_icode.get_untracked() {
-      let _ = self.fetch_hosxp_monthly(year, icode).await;
-    }
+    let summary = self.fetch_hosxp_year_summary(year);
+    let chart = async {
+      if let Some(icode) = self.hosxp_selected_icode.get_untracked() {
+        let _ = self.fetch_hosxp_monthly(year, icode).await;
+      }
+    };
+    let _ = futures::join!(summary, chart);
   }
 
   /// Refresh the INVS side: year summary + the selected drug's chart.

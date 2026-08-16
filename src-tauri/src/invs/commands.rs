@@ -46,19 +46,7 @@ pub struct YearSummary {
 
 // ─── Fiscal Year Helpers ─────────────────────────────────────────────────
 
-fn fiscal_year_range(fy: u16) -> (i32, i32) {
-    let start = (fy as i32 - 1) * 10_000 + 1001;
-    let end = fy as i32 * 10_000 + 930;
-    (start, end)
-}
-
-fn cal_to_fiscal_idx(cal_month: i32) -> usize {
-    if cal_month >= 10 {
-        (cal_month - 10) as usize
-    } else {
-        (cal_month + 2) as usize
-    }
-}
+use crate::fiscal::{cal_to_fiscal_idx, fiscal_year_range};
 
 // ─── Row Helpers ─────────────────────────────────────────────────────────
 
@@ -102,12 +90,22 @@ pub async fn invs_get_drug_monthly_value(
     working_code: String,
     state: tauri::State<'_, InvsDbState>,
 ) -> Result<DrugMonthlyValue, String> {
+    fetch_monthly_value(state.inner(), year, &working_code).await
+}
+
+/// The monthly purchase query behind [`invs_get_drug_monthly_value`], shared
+/// with the reconciliation command (which needs the same arrays).
+pub(crate) async fn fetch_monthly_value(
+    state: &InvsDbState,
+    year: u16,
+    working_code: &str,
+) -> Result<DrugMonthlyValue, String> {
     let mut guard = state.0.lock().await;
     let client = guard
         .as_mut()
         .ok_or_else(|| "ยังไม่ได้เชื่อมต่อฐานข้อมูล INVS".to_string())?;
 
-    let (start_date, end_date) = fiscal_year_range(year);
+    let (start_date, end_date) = fiscal_year_range(year as i32);
 
     let query = "
         SELECT
@@ -131,7 +129,7 @@ pub async fn invs_get_drug_monthly_value(
     ";
 
     let mut stream = client
-        .query(query, &[&working_code.as_str(), &start_date, &end_date])
+        .query(query, &[&working_code, &start_date, &end_date])
         .await
         .map_err(|e| format!("Query error: {e}"))?;
 
@@ -169,7 +167,7 @@ pub async fn invs_get_drug_monthly_value(
         .unwrap_or(1);
 
     Ok(DrugMonthlyValue {
-        working_code,
+        working_code: working_code.to_owned(),
         drug_name,
         monthly_qty,
         total_qty,
@@ -191,7 +189,7 @@ pub async fn invs_get_top_drugs_by_value(
         .as_mut()
         .ok_or_else(|| "ยังไม่ได้เชื่อมต่อฐานข้อมูล INVS".to_string())?;
 
-    let (start_date, end_date) = fiscal_year_range(year);
+    let (start_date, end_date) = fiscal_year_range(year as i32);
     let limit_i32 = limit as i32;
 
     let query = "
@@ -375,7 +373,7 @@ pub async fn invs_get_year_summary(
         .as_mut()
         .ok_or_else(|| "ยังไม่ได้เชื่อมต่อฐานข้อมูล INVS".to_string())?;
 
-    let (start_date, end_date) = fiscal_year_range(year);
+    let (start_date, end_date) = fiscal_year_range(year as i32);
 
     let query = "
         SELECT
