@@ -3,6 +3,7 @@
 //! Wires up the plugin stack, registers IPC command handlers for both
 //! HOSxP (MySQL) and INVS (SQL Server) backends.
 
+mod fiscal;
 mod hosxp;
 mod invs;
 mod mapping;

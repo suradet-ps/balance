@@ -52,13 +52,7 @@ fn fiscal_year_range(fy: u16) -> (i32, i32) {
     (start, end)
 }
 
-fn cal_to_fiscal_idx(cal_month: i32) -> usize {
-    if cal_month >= 10 {
-        (cal_month - 10) as usize
-    } else {
-        (cal_month + 2) as usize
-    }
-}
+use crate::fiscal::cal_to_fiscal_idx;
 
 // ─── Row Helpers ─────────────────────────────────────────────────────────
 
