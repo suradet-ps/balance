@@ -80,11 +80,12 @@ does it violate any other?"
   the Tauri API module is loaded at runtime from `esm.sh`). Version
   `0.1.0`. Two workspaces: `balance` (src-tauri, host target) and
   `balance-frontend` (src/, wasm target).
-- **Backend** (`src-tauri`): 26 Tauri commands — 2 settings, 6 HOSxP, 6
+- **Backend** (`src-tauri`): 28 Tauri commands — 2 settings, 7 HOSxP, 7
   INVS, 11 mapping, 1 reconcile. HOSxP: `sqlx` MySQL pool (12 max / 3 min
-  connections, global `OnceLock<RwLock<Option<MySqlPool>>>`). INVS: a
-  single `tiberius` client in `Arc<Mutex<Option<...>>>` managed state —
-  one connection, held for the app's lifetime, serialised behind a mutex.
+  connections, global `OnceLock<RwLock<Option<MySqlPool>>>`,
+  `test_before_acquire` on). INVS: a single `tiberius` client in
+  `Arc<Mutex<Option<...>>>` managed state — one connection, held for the
+  app's lifetime, serialised behind a mutex.
 - **Data sources (read-only)**:
   - HOSxP MySQL: `opitemrece` (dispensed quantities), `drugitems`
     (drug catalog). All queries use the fiscal-year window (shared
@@ -327,20 +328,22 @@ comparable number.
 Balance must boot and work on a hospital PC with no internet. Today it
 cannot (Gap 4).
 
-- [ ] **Vendor the Tauri API.** Replace the runtime `esm.sh` import with a
-  checked-in copy of the `@tauri-apps/api` module (or the few exports the
-  app actually needs — `invoke` and friends) served from `dist/` as a
-  static asset. The CSP can then drop `https://esm.sh` again.
+- [x] **Boot without the internet.** `app.withGlobalTauri` makes the
+  WebView inject `window.__TAURI__` itself; the runtime `esm.sh` import is
+  gone, so the app boots fully offline on a hospital LAN (the DBs are on
+  the LAN — "offline" means no *internet*, not no *database*; Balance is
+  read-only against the source systems and never caches their data).
 - [ ] **Prove it offline.** CI smoke: build the bundle and check the HTML
   references only local assets; manual acceptance: launch with
   networking disabled and confirm the dashboard still reaches "ยังไม่ได้
   เชื่อมต่อฐานข้อมูล" state and the settings drawer works.
-- [ ] **INVS connection health.** A `invs_ping` command (cheap round-trip
-  — e.g. `SELECT 1`). The frontend polls on an interval; on failure the
-  header badge flips to disconnected and a banner offers "เชื่อมต่อใหม่".
-- [ ] **MySQL pool health.** Enable `test_before_acquire` on the pool and
-  add `hosxp_ping`; same polling UX. Auto-reconnect on next refresh when
-  the pool was lost (the pool is rebuilt on connect).
+- [x] **Connection health.** `hosxp_ping` / `invs_ping` (cheap
+  `SELECT 1`); the frontend polls every 15 s and a failed ping flips the
+  header badge to disconnected.  The MySQL pool heals itself
+  (`test_before_acquire`), so the HOSxP side auto-recovers; the single
+  INVS client cannot heal, so a failed ping retries the saved config.
+  A lost-connection banner shows which side dropped, keeps the
+  last-loaded data on screen, and offers "เชื่อมต่อใหม่" per side.
 - [ ] **Optional INVS TLS.** Make encryption level a settings choice
   (`off` default for legacy servers / `required` with a warning in the
   drawer when off). Never downgrade silently; show a small "ไม่มีการเข้ารหัส"
@@ -348,13 +351,16 @@ cannot (Gap 4).
 - [ ] **Graceful DB-down states.** Per-side "connection lost" overlay on
   the chart area instead of a global error banner and empty charts.
   Keep the last-loaded data visible with a "ข้อมูลล้าสมัย" watermark.
+  *(A banner-level version of this shipped with the health work; the
+  per-panel overlay + watermark remain.)*
 
 **Acceptance:** the app runs fully offline once installed; connection loss
 is detected within ~15 s and recoverable without restarting; INVS
 encryption level is user-visible and configurable; no error path shows a
 raw backend string in English.
 
-**Status:** PENDING
+**Status:** PARTIAL (boot-offline + connection health done; CI smoke, TLS,
+per-panel overlay deferred)
 
 ---
 
