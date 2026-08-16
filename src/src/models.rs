@@ -254,13 +254,17 @@ pub struct Reconciliation {
   pub purchased_qty: Vec<f64>,
   /// INVS purchase value (THB) per fiscal month.
   pub purchased_value: Vec<f64>,
-  /// Yearly unit price (INVS value ÷ HOSxP qty); `None` = nothing dispensed.
+  /// Yearly unit price = Σ purchase value ÷ Σ dispensed qty — the cost per
+  /// dispensed unit; `None` = nothing dispensed.
   pub unit_price_year: Option<f64>,
-  /// Monthly unit price, fiscal order; `None` = no dispensing that month
-  /// (render as "no data", never as a comparable number).
-  pub unit_price_month: Vec<Option<f64>>,
-  /// Per-month purchased − dispensed quantity delta, fiscal order.
-  pub monthly_deltas: Vec<f64>,
+  /// Monthly *purchase* price on purchase months only (value ÷ qty);
+  /// `None` where nothing was bought.
+  pub purchase_price_month: Vec<Option<f64>>,
+  /// The cumulative stock curve (running sum of the deltas); index 11 is
+  /// the implied stock at year end.
+  pub cumulative_deltas: Vec<f64>,
+  /// Σ dispensed ÷ Σ purchased; `None` when nothing was purchased.
+  pub coverage_ratio: Option<f64>,
   /// Coefficient of variation of the dispensed quantities.
   pub cv_dispensed_qty: Option<f64>,
   /// Coefficient of variation of the purchase values.
@@ -270,14 +274,14 @@ pub struct Reconciliation {
 
 /// One discrepancy flag; `kind` is a stable kebab-case string
 /// (`zero-use-full-purchase`, `dispensed-without-purchase`,
-/// `unit-price-spike`, `seasonal-flip`, `one-sided-month`), `month` is the
-/// fiscal index (0 = ต.ค., `None` = whole year).
+/// `unit-price-spike`, `year-end-stock-gap`), `month` is the fiscal index
+/// (0 = ต.ค., `None` = whole year).
 #[derive(Clone, Debug, Deserialize)]
 pub struct DiscrepancyFlag {
   pub kind: String,
   pub month: Option<usize>,
-  /// `only-dispensed` / `only-purchased` for `one-sided-month`.
-  pub one_sided: Option<String>,
+  /// `overstock` / `overuse` for `year-end-stock-gap`.
+  pub gap: Option<String>,
   pub dispensed_qty: f64,
   pub purchased_qty: f64,
   pub purchased_value: f64,

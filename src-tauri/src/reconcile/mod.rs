@@ -5,11 +5,25 @@
 //! both already in Thai fiscal order (index 0 = ต.ค.) — and produces the
 //! numbers and rule-based flags the pharmacy director actually wants.
 //!
+//! **Why the comparison is year-first, not month-first.** A hospital buys a
+//! drug once or twice a year (stock covering 12 months of dispensing), so a
+//! month-by-month "purchase vs dispensing" comparison is structurally
+//! noisy — a purchase month without dispensing is normal, not an anomaly.
+//! The engine therefore answers the questions that are answerable:
+//!
+//! - **year level**: total dispensed vs total purchased (coverage ratio),
+//!   the yearly unit price, and whether the *stock curve* (cumulative
+//!   purchased − dispensed) still shows a material imbalance at year end;
+//! - **month level**: purchase events and the cumulative stock curve are
+//!   reported as *data* (the frontend table), never flagged as anomalies;
+//! - **unit price**: per-month *purchase* prices (value ÷ qty on purchase
+//!   months only — comparing purchase value against that month's dispensing
+//!   is meaningless when the stock was bought earlier).
+//!
 //! Every rule is a pure function with unit tests and synthetic fixtures;
 //! thresholds are parameters with defaults, so Phase 8 can expose them in
-//! settings without touching the rules.  A "no data" month (zero dispensed
-//! quantity) yields `None` unit prices — never `∞`, never a number that
-//! looks comparable when it is not.
+//! settings without touching the rules.  Zero-quantity months yield `None`
+//! prices — never `∞`, never a number that looks comparable when it is not.
 
 pub mod commands;
 
@@ -24,23 +38,25 @@ pub enum FlagKind {
     ZeroUseFullPurchase,
     /// Dispensed all year but never purchased (legacy stock / data problem).
     DispensedWithoutPurchase,
-    /// One month's unit price exceeds `unit_price_spike_factor` × the
-    /// yearly median.
+    /// One purchase month's price exceeds `unit_price_spike_factor` × the
+    /// median monthly purchase price.
     UnitPriceSpike,
-    /// The dispensing peak month is not the purchase peak month.
-    SeasonalFlip,
-    /// A month with purchases but no dispensing, or vice versa.
-    OneSidedMonth,
+    /// The stock curve still shows a material imbalance at year end:
+    /// leftover stock (bought more than dispensed) or over-use (dispensed
+    /// more than bought — stock from previous years / data problem).
+    YearEndStockGap,
 }
 
-/// Which side of a [`FlagKind::OneSidedMonth`] flag has data.
+/// Which direction a [`FlagKind::YearEndStockGap`] flag points.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
-pub enum OneSidedKind {
-    /// Dispensed (HOSxP) in this month, no purchase (INVS) at all.
-    OnlyDispensed,
-    /// Purchased (INVS) in this month, nothing dispensed (HOSxP).
-    OnlyPurchased,
+pub enum StockGapKind {
+    /// Bought more than dispensed — stock carried past the year end
+    /// (expiry / over-procurement risk).
+    Overstock,
+    /// Dispensed more than bought — consumed stock from previous years,
+    /// or a data problem.
+    Overuse,
 }
 
 /// A single discrepancy flag, carrying the two numbers that produced it so
@@ -50,7 +66,7 @@ pub enum OneSidedKind {
 pub struct DiscrepancyFlag {
     pub kind: FlagKind,
     pub month: Option<usize>,
-    pub one_sided: Option<OneSidedKind>,
+    pub gap: Option<StockGapKind>,
     /// HOSxP dispensed quantity for the month / the whole year.
     pub dispensed_qty: f64,
     /// INVS purchase quantity for the month / the whole year.
@@ -63,12 +79,16 @@ pub struct DiscrepancyFlag {
 /// user-configurable.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Thresholds {
-    /// `unit_price_spike` fires when a month's unit price is above
-    /// `factor` × the yearly median unit price.
+    /// `unit_price_spike` fires when a purchase month's price is above
+    /// `factor` × the median monthly purchase price.
     pub unit_price_spike_factor: f64,
     /// A "purchase" counts only when the month's INVS value is above this
     /// (avoids flagging ฿0 invoice rows as purchases).
     pub min_purchase_value: f64,
+    /// `year_end_stock_gap` fires when the cumulative stock curve at year
+    /// end deviates from zero by more than this fraction of the yearly
+    /// dispensed quantity.
+    pub year_end_stock_gap_ratio: f64,
 }
 
 impl Default for Thresholds {
@@ -76,6 +96,7 @@ impl Default for Thresholds {
         Self {
             unit_price_spike_factor: 3.0,
             min_purchase_value: 0.0,
+            year_end_stock_gap_ratio: 0.25,
         }
     }
 }
@@ -101,13 +122,23 @@ pub struct Reconciliation {
     pub purchased_qty: Vec<f64>,
     /// INVS purchase value (THB) per fiscal month (echoed input).
     pub purchased_value: Vec<f64>,
-    /// Yearly unit price = Σ value ÷ Σ qty (`None` when nothing dispensed).
+    /// Yearly unit price = Σ purchase value ÷ Σ dispensed quantity — the
+    /// cost per dispensed unit (`None` when nothing dispensed).
     pub unit_price_year: Option<f64>,
-    /// Monthly unit price (`None` in months with no dispensing — displayed
-    /// as "no data", never as ∞).
-    pub unit_price_month: Vec<Option<f64>>,
+    /// Monthly *purchase* price = value ÷ qty, on purchase months only
+    /// (`None` where nothing was bought — that month has no price event).
+    /// Comparing purchase value against the same month's dispensing is
+    /// meaningless with stock bought in bulk, so the monthly price is a
+    /// purchase-price, not a dispensing-price.
+    pub purchase_price_month: Vec<Option<f64>>,
     /// Per-month purchased − dispensed quantity delta (fiscal order).
     pub monthly_deltas: Vec<f64>,
+    /// The cumulative stock curve: running sum of the deltas, i.e. the
+    /// implied stock-on-hand across the year (index 11 = year end).
+    pub cumulative_deltas: Vec<f64>,
+    /// Σ dispensed ÷ Σ purchased (None when nothing was purchased) — how
+    /// much of what was bought actually left the pharmacy this year.
+    pub coverage_ratio: Option<f64>,
     /// Coefficient of variation of the dispensed quantities (`None` when
     /// the mean is 0 — variance is meaningless on an all-zero series).
     pub cv_dispensed_qty: Option<f64>,
@@ -116,8 +147,8 @@ pub struct Reconciliation {
     pub flags: Vec<DiscrepancyFlag>,
 }
 
-/// Unit price = INVS value ÷ HOSxP quantity.  `None` when nothing was
-/// dispensed — a zero-quantity month renders "no dispensing data".
+/// Unit price = value ÷ quantity.  `None` when nothing was bought /
+/// dispensed — a zero-quantity month renders "no data".
 #[must_use]
 pub fn unit_price(value: f64, qty: f64) -> Option<f64> {
     if qty > 0.0 { Some(value / qty) } else { None }
@@ -154,19 +185,6 @@ fn median_of(values: impl Iterator<Item = f64>) -> Option<f64> {
     }
 }
 
-/// Index of the peak month (first max wins; `None` when the series is all
-/// zero — an all-zero series has no meaningful "peak").
-#[must_use]
-pub fn peak_month(values: &[f64]) -> Option<usize> {
-    let mut best: Option<(usize, f64)> = None;
-    for (i, v) in values.iter().copied().enumerate() {
-        if v > 0.0 && best.is_none_or(|(_, bv)| v > bv) {
-            best = Some((i, v));
-        }
-    }
-    best.map(|(i, _)| i)
-}
-
 /// Run every rule against the two series.  `input` series must be
 /// 12 entries in fiscal order (callers debug-assert this).
 #[must_use]
@@ -180,69 +198,69 @@ pub fn reconcile(input: &ReconcileInput, thresholds: Thresholds) -> Reconciliati
     debug_assert_eq!(purchased_qty.len(), 12);
     debug_assert_eq!(purchased_value.len(), 12);
 
-    // ── Unit prices ────────────────────────────────────────────────────
-    let year_qty: f64 = dispensed_qty.iter().sum();
+    // ── Year-level figures ─────────────────────────────────────────────
+    let year_dispensed: f64 = dispensed_qty.iter().sum();
+    let year_purchased_qty: f64 = purchased_qty.iter().sum();
     let year_value: f64 = purchased_value.iter().sum();
-    let unit_price_year = unit_price(year_value, year_qty);
-    let unit_price_month: Vec<Option<f64>> = (0..12)
-        .map(|m| unit_price(purchased_value[m], dispensed_qty[m]))
-        .collect();
+    let unit_price_year = unit_price(year_value, year_dispensed);
+    let coverage_ratio = if year_purchased_qty > 0.0 {
+        Some(year_dispensed / year_purchased_qty)
+    } else {
+        None
+    };
 
-    // ── Per-month deltas + one-sided months ────────────────────────────
+    // ── Monthly data (prices, deltas, the stock curve) ─────────────────
+    // Prices are *purchase* prices on purchase months only; deltas and the
+    // cumulative curve are data for the table — not flags (bulk buying
+    // makes month-level purchase↔dispensing mismatches normal).
+    let purchase_price_month: Vec<Option<f64>> = (0..12)
+        .map(|m| {
+            if purchased_value[m] > thresholds.min_purchase_value {
+                unit_price(purchased_value[m], purchased_qty[m])
+            } else {
+                None
+            }
+        })
+        .collect();
     let mut monthly_deltas = Vec::with_capacity(12);
-    let mut flags: Vec<DiscrepancyFlag> = Vec::new();
+    let mut cumulative_deltas = Vec::with_capacity(12);
+    let mut running = 0.0;
     for m in 0..12 {
-        monthly_deltas.push(purchased_qty[m] - dispensed_qty[m]);
-        let dispensed = dispensed_qty[m] > 0.0;
-        let purchased = purchased_value[m] > thresholds.min_purchase_value;
-        if purchased && !dispensed {
-            flags.push(DiscrepancyFlag {
-                kind: FlagKind::OneSidedMonth,
-                month: Some(m),
-                one_sided: Some(OneSidedKind::OnlyPurchased),
-                dispensed_qty: dispensed_qty[m],
-                purchased_qty: purchased_qty[m],
-                purchased_value: purchased_value[m],
-            });
-        } else if dispensed && !purchased {
-            flags.push(DiscrepancyFlag {
-                kind: FlagKind::OneSidedMonth,
-                month: Some(m),
-                one_sided: Some(OneSidedKind::OnlyDispensed),
-                dispensed_qty: dispensed_qty[m],
-                purchased_qty: purchased_qty[m],
-                purchased_value: purchased_value[m],
-            });
-        }
+        let delta = purchased_qty[m] - dispensed_qty[m];
+        running += delta;
+        monthly_deltas.push(delta);
+        cumulative_deltas.push(running);
     }
 
+    let mut flags: Vec<DiscrepancyFlag> = Vec::new();
+
     // ── Whole-year flags ───────────────────────────────────────────────
-    if year_qty <= 0.0 && year_value > 0.0 {
+    if year_dispensed <= 0.0 && year_value > 0.0 {
         flags.push(DiscrepancyFlag {
             kind: FlagKind::ZeroUseFullPurchase,
             month: None,
-            one_sided: None,
-            dispensed_qty: year_qty,
-            purchased_qty: purchased_qty.iter().sum(),
+            gap: None,
+            dispensed_qty: year_dispensed,
+            purchased_qty: year_purchased_qty,
             purchased_value: year_value,
         });
     }
-    if year_qty > 0.0 && year_value <= 0.0 {
+    if year_dispensed > 0.0 && year_value <= 0.0 {
         flags.push(DiscrepancyFlag {
             kind: FlagKind::DispensedWithoutPurchase,
             month: None,
-            one_sided: None,
-            dispensed_qty: year_qty,
-            purchased_qty: purchased_qty.iter().sum(),
+            gap: None,
+            dispensed_qty: year_dispensed,
+            purchased_qty: year_purchased_qty,
             purchased_value: year_value,
         });
     }
 
-    // ── Unit-price spike ───────────────────────────────────────────────
-    let median_price = median_of(unit_price_month.iter().flatten().copied());
+    // ── Unit-price spike (on purchase months only) ─────────────────────
+    let median_price = median_of(purchase_price_month.iter().flatten().copied());
     if let Some(median) = median_price {
         for m in 0..12 {
-            let Some(price) = unit_price_month[m] else {
+            let Some(price) = purchase_price_month[m] else {
                 continue;
             };
             let spike = if median > 0.0 {
@@ -256,7 +274,7 @@ pub fn reconcile(input: &ReconcileInput, thresholds: Thresholds) -> Reconciliati
                 flags.push(DiscrepancyFlag {
                     kind: FlagKind::UnitPriceSpike,
                     month: Some(m),
-                    one_sided: None,
+                    gap: None,
                     dispensed_qty: dispensed_qty[m],
                     purchased_qty: purchased_qty[m],
                     purchased_value: purchased_value[m],
@@ -265,20 +283,31 @@ pub fn reconcile(input: &ReconcileInput, thresholds: Thresholds) -> Reconciliati
         }
     }
 
-    // ── Seasonal flip ──────────────────────────────────────────────────
-    let peak_dispensed = peak_month(dispensed_qty);
-    let peak_purchased = peak_month(purchased_qty);
-    if let (Some(pd), Some(pp)) = (peak_dispensed, peak_purchased)
-        && pd != pp
-    {
-        flags.push(DiscrepancyFlag {
-            kind: FlagKind::SeasonalFlip,
-            month: Some(pd),
-            one_sided: None,
-            dispensed_qty: dispensed_qty[pd],
-            purchased_qty: purchased_qty[pd],
-            purchased_value: purchased_value[pd],
-        });
+    // ── Year-end stock gap ─────────────────────────────────────────────
+    // The stock curve's end point is Σpurchased − Σdispensed.  A material
+    // residual in either direction is the real reconciliation question
+    // (bought more than used → stock carried past year end; used more than
+    // bought → stock from previous years / data problem).
+    if year_dispensed > 0.0 {
+        let gap = cumulative_deltas[11];
+        let threshold = thresholds.year_end_stock_gap_ratio * year_dispensed;
+        let kind = if gap > threshold {
+            Some(StockGapKind::Overstock)
+        } else if gap < -threshold {
+            Some(StockGapKind::Overuse)
+        } else {
+            None
+        };
+        if let Some(gap_kind) = kind {
+            flags.push(DiscrepancyFlag {
+                kind: FlagKind::YearEndStockGap,
+                month: None,
+                gap: Some(gap_kind),
+                dispensed_qty: year_dispensed,
+                purchased_qty: year_purchased_qty,
+                purchased_value: year_value,
+            });
+        }
     }
 
     flags.sort_by_key(|f| (f.kind as u8, f.month.unwrap_or(usize::MAX)));
@@ -288,8 +317,10 @@ pub fn reconcile(input: &ReconcileInput, thresholds: Thresholds) -> Reconciliati
         purchased_qty: purchased_qty.clone(),
         purchased_value: purchased_value.clone(),
         unit_price_year,
-        unit_price_month,
+        purchase_price_month,
         monthly_deltas,
+        cumulative_deltas,
+        coverage_ratio,
         cv_dispensed_qty: coefficient_of_variation(dispensed_qty),
         cv_purchased_value: coefficient_of_variation(purchased_value),
         flags,
@@ -323,10 +354,10 @@ mod tests {
 
     #[test]
     fn healthy_year_has_no_flags() {
-        // Steady dispensing (10/mo) and steady purchases (15/mo, ฿10/unit) —
-        // the deltas are all +5, no one-sided months, no spikes, peaks align.
+        // Steady dispensing (10/mo) and matching purchases (10/mo, ฿10/unit):
+        // deltas 0, stock curve flat at 0, no spikes, coverage 100%.
         let dispensed = [10.0; 12];
-        let purchased_qty = [15.0; 12];
+        let purchased_qty = [10.0; 12];
         let purchased_value = [100.0; 12];
         let r = reconcile(
             &input(dispensed, purchased_qty, purchased_value),
@@ -334,9 +365,40 @@ mod tests {
         );
         assert!(r.flags.is_empty(), "{:?}", r.flags);
         assert_eq!(r.unit_price_year, Some(10.0));
-        assert_eq!(r.monthly_deltas, vec![5.0; 12]);
+        assert_eq!(r.monthly_deltas, vec![0.0; 12]);
+        assert_eq!(r.cumulative_deltas, vec![0.0; 12]);
+        assert_eq!(r.coverage_ratio, Some(1.0));
         assert!(r.cv_dispensed_qty.is_some());
         assert!(r.cv_purchased_value.is_some());
+    }
+
+    #[test]
+    fn bulk_purchase_with_months_of_dispensing_is_normal_not_flagged() {
+        // The user's real-world shape: bought ONCE (fiscal month 0, 120 units
+        // covering the year), dispensed steadily 10/mo.  Month 0 has purchases
+        // without dispensing... no wait, it has both.  Months 1..11 dispense
+        // without purchases — normal stock behavior, must NOT be flagged.
+        let dispensed = [10.0; 12];
+        let mut purchased_qty = ZERO;
+        let mut purchased_value = ZERO;
+        purchased_qty[0] = 120.0;
+        purchased_value[0] = 1200.0;
+        let r = reconcile(
+            &input(dispensed, purchased_qty, purchased_value),
+            Thresholds::default(),
+        );
+        // Coverage 100% and the stock curve returns to zero by year end →
+        // no year-end gap, no one-sided flags (by design).
+        assert_eq!(r.coverage_ratio, Some(1.0));
+        assert_eq!(
+            r.cumulative_deltas[0], 110.0,
+            "stock piles up after the buy"
+        );
+        assert_eq!(r.cumulative_deltas[11], 0.0, "stock fully consumed by Sep");
+        assert!(r.flags.is_empty(), "{:?}", r.flags);
+        // Monthly purchase price exists only on the purchase month.
+        assert_eq!(r.purchase_price_month[0], Some(10.0));
+        assert_eq!(r.purchase_price_month[1], None);
     }
 
     #[test]
@@ -348,14 +410,6 @@ mod tests {
                 .any(|f| f.kind == FlagKind::ZeroUseFullPurchase && f.month.is_none()),
             "{:?}",
             r.flags
-        );
-        // Every month is also a one-sided "OnlyPurchased" month.
-        assert_eq!(
-            r.flags
-                .iter()
-                .filter(|f| f.kind == FlagKind::OneSidedMonth)
-                .count(),
-            12
         );
         assert_eq!(
             r.unit_price_year, None,
@@ -375,23 +429,15 @@ mod tests {
             "{:?}",
             r.flags
         );
-        assert!(
-            r.flags.iter().any(|f| f.kind == FlagKind::OneSidedMonth
-                && f.one_sided == Some(OneSidedKind::OnlyDispensed)
-                && f.month == Some(0)),
-            "{:?}",
-            r.flags
-        );
     }
 
     #[test]
     fn unit_price_spike_fires_above_the_threshold() {
-        // 10 units × ฿10/month except month 5: 1 unit for ฿200.
-        let mut dispensed = [10.0; 12];
+        // 10 units × ฿10/month, except month 5: same 10 units for ฿400
+        // (purchase price ฿40 vs median ฿10 → > 3×).
         let mut value = [100.0; 12];
-        dispensed[5] = 1.0;
-        value[5] = 200.0;
-        let r = reconcile(&input(dispensed, [10.0; 12], value), Thresholds::default());
+        value[5] = 400.0;
+        let r = reconcile(&input([10.0; 12], [10.0; 12], value), Thresholds::default());
         let spike: Vec<&DiscrepancyFlag> = r
             .flags
             .iter()
@@ -399,8 +445,7 @@ mod tests {
             .collect();
         assert_eq!(spike.len(), 1, "{:?}", r.flags);
         assert_eq!(spike[0].month, Some(5));
-        assert_eq!(spike[0].dispensed_qty, 1.0);
-        assert_eq!(spike[0].purchased_value, 200.0);
+        assert_eq!(spike[0].purchased_value, 400.0);
     }
 
     #[test]
@@ -418,37 +463,87 @@ mod tests {
     }
 
     #[test]
-    fn seasonal_flip_detects_offset_peaks() {
-        // Dispensing peaks in fiscal month 0 (Oct), purchases in month 6 (Apr).
-        let mut dispensed = [1.0; 12];
-        let mut purchased_qty = [1.0; 12];
-        dispensed[0] = 30.0;
-        purchased_qty[6] = 30.0;
+    fn single_purchase_never_spikes() {
+        // One purchase all year → the median IS that price → no spike
+        // (a single data point cannot detect a spike; that needs years).
+        let mut purchased_qty = ZERO;
+        let mut value = ZERO;
+        purchased_qty[0] = 120.0;
+        value[0] = 2400.0;
         let r = reconcile(
-            &input(dispensed, purchased_qty, [10.0; 12]),
+            &input([10.0; 12], purchased_qty, value),
             Thresholds::default(),
         );
         assert!(
-            r.flags
-                .iter()
-                .any(|f| f.kind == FlagKind::SeasonalFlip && f.month == Some(0)),
+            !r.flags.iter().any(|f| f.kind == FlagKind::UnitPriceSpike),
             "{:?}",
             r.flags
+        );
+        assert_eq!(r.unit_price_year, Some(20.0));
+    }
+
+    #[test]
+    fn year_end_overstock_is_flagged_with_the_curve_numbers() {
+        // Bought 200 in Oct, dispensed 10/mo (120/year) → stock curve ends
+        // at +80, which is > 25% of 120 → Overstock.
+        let mut purchased_qty = ZERO;
+        let mut value = ZERO;
+        purchased_qty[0] = 200.0;
+        value[0] = 2000.0;
+        let r = reconcile(
+            &input([10.0; 12], purchased_qty, value),
+            Thresholds::default(),
+        );
+        let gap: Vec<&DiscrepancyFlag> = r
+            .flags
+            .iter()
+            .filter(|f| f.kind == FlagKind::YearEndStockGap)
+            .collect();
+        assert_eq!(gap.len(), 1, "{:?}", r.flags);
+        assert_eq!(gap[0].gap, Some(StockGapKind::Overstock));
+        assert_eq!(gap[0].dispensed_qty, 120.0);
+        assert_eq!(gap[0].purchased_qty, 200.0);
+        assert_eq!(
+            r.cumulative_deltas[11], 80.0,
+            "the flag's underlying curve point"
         );
     }
 
     #[test]
-    fn aligned_peaks_do_not_flag_seasonal_flip() {
-        let mut dispensed = [1.0; 12];
-        let mut purchased_qty = [1.0; 12];
-        dispensed[6] = 30.0;
-        purchased_qty[6] = 30.0;
+    fn year_end_overuse_is_flagged() {
+        // Bought 50 in Oct, dispensed 10/mo (120/year) → curve ends at −70
+        // (< −25% of 120) → Overuse (stock from before the year / data).
+        let mut purchased_qty = ZERO;
+        let mut value = ZERO;
+        purchased_qty[0] = 50.0;
+        value[0] = 500.0;
         let r = reconcile(
-            &input(dispensed, purchased_qty, [10.0; 12]),
+            &input([10.0; 12], purchased_qty, value),
+            Thresholds::default(),
+        );
+        let gap: Vec<&DiscrepancyFlag> = r
+            .flags
+            .iter()
+            .filter(|f| f.kind == FlagKind::YearEndStockGap)
+            .collect();
+        assert_eq!(gap.len(), 1, "{:?}", r.flags);
+        assert_eq!(gap[0].gap, Some(StockGapKind::Overuse));
+        assert_eq!(r.cumulative_deltas[11], -70.0);
+    }
+
+    #[test]
+    fn small_year_end_residual_is_not_flagged() {
+        // Bought 130, dispensed 120 → curve ends at +10 < 25% of 120 → clean.
+        let mut purchased_qty = ZERO;
+        let mut value = ZERO;
+        purchased_qty[0] = 130.0;
+        value[0] = 1300.0;
+        let r = reconcile(
+            &input([10.0; 12], purchased_qty, value),
             Thresholds::default(),
         );
         assert!(
-            !r.flags.iter().any(|f| f.kind == FlagKind::SeasonalFlip),
+            !r.flags.iter().any(|f| f.kind == FlagKind::YearEndStockGap),
             "{:?}",
             r.flags
         );
@@ -459,6 +554,7 @@ mod tests {
         let r = reconcile(&input(ZERO, ZERO, ZERO), Thresholds::default());
         assert!(r.flags.is_empty());
         assert_eq!(r.unit_price_year, None);
+        assert_eq!(r.coverage_ratio, None);
         assert!(r.cv_dispensed_qty.is_none());
         assert!(r.cv_purchased_value.is_none());
     }
@@ -470,14 +566,5 @@ mod tests {
         assert_eq!(coefficient_of_variation(&[5.0, 5.0, 5.0]), Some(0.0));
         let cv = coefficient_of_variation(&[10.0, 30.0]).expect("cv");
         assert!((cv - 0.5).abs() < 1e-9, "{cv}");
-    }
-
-    #[test]
-    fn peak_month_ignores_all_zero_series() {
-        assert_eq!(peak_month(&ZERO), None);
-        let mut v = [0.0; 12];
-        v[4] = 5.0;
-        v[7] = 5.0;
-        assert_eq!(peak_month(&v), Some(4), "first max wins");
     }
 }
