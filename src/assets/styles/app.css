@@ -106,6 +106,29 @@
   flex-shrink: 0;
 }
 
+.lost-banner {
+  background: var(--red-subtle);
+  border-bottom: 1px solid rgba(224, 62, 62, 0.2);
+  color: var(--red);
+  font-size: 13px;
+  padding: 8px 20px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.lost-actions {
+  margin-left: auto;
+  display: flex;
+  gap: 8px;
+}
+
+.lost-btn {
+  padding: 4px 12px;
+  font-size: 12px;
+}
+
 .link-btn {
   background: transparent;
   border: none;

@@ -60,12 +60,14 @@ command modules.
 | `hosxp_get_drug_list` | HOSxP search panel dropdown. |
 | `hosxp_get_drug_monthly_qty` | HOSxP chart (fiscal-month buckets). |
 | `hosxp_get_year_summary` | KPI bar (HOSxP ยอดจ่ายรวม). |
+| `hosxp_ping` | Connection-health poll (15 s). |
 | `hosxp_get_top_drugs` | *No view yet* — Phase 7 decides (build Top Drugs or remove). |
 | `invs_connect` | Settings drawer — INVS test; also boot auto-connect. |
 | `invs_get_available_years` | Header year selector (fiscal years). |
 | `invs_get_drug_list` | INVS search panel dropdown. |
 | `invs_get_drug_monthly_value` | INVS chart. |
 | `invs_get_year_summary` | KPI bar (INVS ยอดซื้อรวม). |
+| `invs_ping` | Connection-health poll (15 s). |
 | `invs_get_top_drugs_by_value` | *No view yet* — Phase 7 decides. |
 | `mapping_status_by_icode` / `mapping_status_by_working_code` | Panel match-status chips; linked selection across panels. |
 | `mapping_list_rows` | Mapping view — HOSxP list with per-row state. |

@@ -64,6 +64,20 @@ pub async fn hosxp_get_year_summary(year: i32) -> Result<HosxpYearSummary, Backe
     .map_err(BackendError::from_js)
 }
 
+/// Cheap round-trip for the connection-health poll.
+pub async fn hosxp_ping() -> Result<(), BackendError> {
+  invoke::<()>("hosxp_ping", &JsValue::NULL)
+    .await
+    .map_err(BackendError::from_js)
+}
+
+/// Cheap round-trip for the connection-health poll.
+pub async fn invs_ping() -> Result<(), BackendError> {
+  invoke::<()>("invs_ping", &JsValue::NULL)
+    .await
+    .map_err(BackendError::from_js)
+}
+
 /// Connect to the INVS SQL Server with `cfg`.
 pub async fn invs_connect(cfg: &InvsDbConfig) -> Result<(), BackendError> {
   let args = build_args(&[("cfg", &arg(cfg))]);

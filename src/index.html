@@ -29,36 +29,12 @@
     </head>
     <body>
         <!--
-          Tauri v2 does not inject `window.__TAURI__` on its own — that global
-          object is normally provided by the `@tauri-apps/api` npm package, which
-          we cannot `import` here because the frontend has no JS bundler
-          (it is built by Trunk from Rust/wasm).  `withGlobalTauri` is enabled in
-          tauri.conf.json, but it is rejected by some Tauri v2 configs, so we
-          also load the API module at *runtime* from a CDN as a fallback and
-          expose it as `window.__TAURI__` so the Rust frontend's IPC layer
-          (services/tauri.rs, which reads `window.__TAURI__.core`) works without
-          any Node/npm tooling.
-
-          We import it *directly* from esm.sh rather than fetching the source
-          and re-importing it from a `blob:` URL.  Both esm.sh and jsdelivr's
-          `+esm` rewrite the package's internal imports to absolute paths such
-          as `/@tauri-apps/api@2.11.1/es2022/api.mjs`; those resolve fine
-          against esm.sh's *own* origin when imported directly, but they
-          cannot resolve from an opaque `blob:` origin.  The `script-src`
-          directive in tauri.conf.json therefore allows `https://esm.sh`.
+          The Tauri API is injected by the WebView itself (`withGlobalTauri:
+          true` in tauri.conf.json), so `window.__TAURI__.core.invoke` exists
+          synchronously with no network dependency — the app boots fully
+          offline on a hospital LAN.  services/tauri.rs is the only place
+          that touches it.
         -->
-        <script type="module">
-            window.__TAURI_PROMISE__ = import("https://esm.sh/@tauri-apps/api@2")
-                .then((mod) => {
-                    window.__TAURI__ = mod;
-                    return mod;
-                })
-                .catch((err) => {
-                    console.error("Failed to load Tauri global API:", err);
-                    throw err;
-                });
-        </script>
-
         <link data-trunk rel="rust" />
     </body>
 </html>

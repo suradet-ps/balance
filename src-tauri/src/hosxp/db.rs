@@ -89,7 +89,10 @@ pub async fn init_pool(config: HosxpDbConfig) -> Result<(), String> {
         .acquire_timeout(Duration::from_secs(20))
         .idle_timeout(Duration::from_secs(600))
         .max_lifetime(Duration::from_secs(3600))
-        .test_before_acquire(false)
+        // Verify pooled connections before handing them out, so a MySQL
+        // restart is detected on the next query instead of failing with a
+        // stale-connection error (health checks depend on this).
+        .test_before_acquire(true)
         .connect(&url)
         .await
         .map_err(|e| format!("HOSxP DB connection failed: {}", e))?;

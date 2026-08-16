@@ -96,6 +96,18 @@ pub async fn hosxp_connect(config: HosxpDbConfig) -> Result<(), String> {
     init_pool(config).await
 }
 
+/// Cheap round-trip for the frontend's connection-health poll.
+#[tauri::command]
+pub async fn hosxp_ping() -> Result<(), String> {
+    with_pool(|pool| {
+        Box::pin(async move {
+            sqlx::query("SELECT 1").execute(pool).await?;
+            Ok::<(), sqlx::Error>(())
+        })
+    })
+    .await
+}
+
 /// Fetch distinct **fiscal years** present in opitemrece.vstdate, newest
 /// first (FY N = 1 Oct of N−1 … 30 Sep of N — same definition as the INVS
 /// side, so the dropdown is a single consistent fiscal axis).

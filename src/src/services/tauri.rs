@@ -1,15 +1,11 @@
 //! Low-level Tauri global IPC bindings.
 //!
 //! The frontend is built by `trunk` with no JS bundler, so it cannot `import`
-//! the `@tauri-apps/api` npm module.  Instead `index.html` loads that module
-//! **at runtime** from a CDN and exposes it as `window.__TAURI__` (with
-//! `.core.invoke`).  These helpers wrap the raw `web-sys` calls so the rest of
+//! the `@tauri-apps/api` npm module.  Instead `withGlobalTauri` is enabled in
+//! `tauri.conf.json`, which makes the WebView inject `window.__TAURI__`
+//! synchronously — no CDN, no network dependency, the app boots offline on a
+//! hospital LAN.  These helpers wrap the raw `web-sys` calls so the rest of
 //! the app never touches the DOM.
-//!
-//! Because the global is loaded asynchronously, the first IPC call may race the
-//! CDN import. [`get_tauri`] awaits that load promise before giving up, so a
-//! slow import (or an offline CDN) degrades to a clear error instead of an
-//! instant failure.
 
 use js_sys::{Function, Promise, Reflect};
 use serde::de::DeserializeOwned;
@@ -22,31 +18,12 @@ fn no_tauri() -> JsValue {
   JsValue::from_str("Tauri global API is not available")
 }
 
-/// `index.html` loads the `@tauri-apps/api` module **at runtime** and assigns
-/// the resolved module to `window.__TAURI__`.  It also stores the load
-/// *promise* on `window.__TAURI_PROMISE__` so the IPC layer can await the
-/// global's availability instead of racing it.
-///
-/// Returns the `window` object once `window.__TAURI__` is present.
+/// Return the `window` object once `window.__TAURI__` is present (injected
+/// synchronously by `withGlobalTauri`).
 async fn get_tauri() -> Result<JsValue, JsValue> {
   let win = window().ok_or_else(no_tauri)?;
-
-  // If the global is already here, return immediately.
   let existing = Reflect::get(&win, &JsValue::from_str("__TAURI__"))?;
-  if !existing.is_undefined() && !existing.is_null() {
-    return Ok(JsValue::from(win));
-  }
-
-  // Otherwise wait for the runtime load promise (created by index.html).
-  let promise = Reflect::get(&win, &JsValue::from_str("__TAURI_PROMISE__"))?;
-  if promise.is_undefined() || promise.is_null() {
-    return Err(no_tauri());
-  }
-  let promise = promise.dyn_into::<Promise>().map_err(|_| no_tauri())?;
-  let _ = JsFuture::from(promise).await;
-
-  let tauri = Reflect::get(&win, &JsValue::from_str("__TAURI__"))?;
-  if tauri.is_undefined() || tauri.is_null() {
+  if existing.is_undefined() || existing.is_null() {
     return Err(no_tauri());
   }
   Ok(JsValue::from(win))
