@@ -7,23 +7,31 @@ candidate names.
 
 ## The workflow
 
-1. **List** — the pharmacist searches the HOSxP catalog in the mapping
-   drawer (ตารางรายการ).  Each row shows its state: `mapped` (with the
-   linked INVS code), `no_invs` (marked as having no INVS equivalent), or
-   `unmapped`.
-2. **Suggest** — "ดูคำแนะนำ" on an unmapped row fetches the top INVS
-   candidates scored by name similarity, best first, with the score shown
-   as a percentage.
+The mapping view is a full-screen **master–detail** layout (no drawer, no
+tabs):
+
+1. **List (left pane)** — the pharmacist searches the HOSxP catalog
+   (debounced), filters by status chip (ทั้งหมด / ยังไม่แมป / แมปแล้ว /
+   ไม่มีใน INVS) and clicks a row.  Each row shows its state: `mapped`
+   (with the linked INVS code), `no_invs` (marked as having no INVS
+   equivalent), or `unmapped`.
+2. **Detail (right pane)** — the selected drug's state and its scored INVS
+   candidates, best first, with the score shown as a percentage.
 3. **Match** — the pharmacist clicks "แมป" on a candidate (recorded as
    `approved`: suggested by machine, confirmed by a person), or force-links
-   an arbitrary INVS drug via the manual search (recorded as `manual`).
-4. **Batch** — "แมปอัตโนมัติ" runs the same scorer over the current list and
-   previews every match at or above the threshold (`auto`); the pharmacist
-   confirms before anything is written.  CSV import (tab นำเข้า CSV) does
-   the same for the hospital's own `icode ↔ working_code` list.
-5. **Exclusions** — "ไม่มีใน INVS" marks a drug as having no INVS equivalent
-   (e.g. no longer procured), with the reason recorded.  A mapping and an
-   exclusion for the same icode are mutually exclusive.
+   an arbitrary INVS drug via the manual search in the same pane (recorded
+   as `manual`).  After any change the selection **auto-advances** to the
+   next unmapped row, so a 100+ drug session never returns to the list by
+   hand.
+4. **Batch** — the header's "แมปอัตโนมัติ" runs the same scorer over the
+   current search results and previews every match at or above the
+   threshold (`auto`) in a confirm dialog; nothing is written before the
+   pharmacist confirms.  "นำเข้า CSV" opens the same preview-then-confirm
+   flow for the hospital's own `icode ↔ working_code` list.
+5. **Exclusions** — "ยานี้ไม่มีใน INVS" in the detail pane marks a drug as
+   having no INVS equivalent (e.g. no longer procured), with the reason
+   recorded.  A mapping and an exclusion for the same icode are mutually
+   exclusive.
 
 ## The normalizer
 
@@ -82,14 +90,19 @@ preview-then-confirm flow.  Below it they are only suggestions.
 
 ## Candidate generation
 
-`mapping_suggest` queries `DRUG_GN` loosely — exact `WORKING_CODE`, code
-prefix, or name substring of the first search word (second word joined in
-when the first is under 3 chars; capped at 16 chars) — then scores every
-hit in Rust and returns the top N (default 10).
+`mapping_suggest` queries `DRUG_GN` — exact `WORKING_CODE`, code prefix, or
+name substring of the first search word (second word joined in when the
+first is under 3 chars; capped at 16 chars), ordered exact → prefix →
+substring so the `TOP` cut is relevance-first.  Wildcards are escaped
+(`ESCAPE '~'`), a blank name returns no candidates (never `LIKE '%%'`),
+and hits are deduped by `WORKING_CODE` keeping the best-scoring name —
+then scored in Rust, best N (default 10) returned.
 
 ## Bulk CSV format
 
-Pasted into the นำเข้า CSV tab.  Header optional (auto-detected), the two
+Pasted into the นำเข้า CSV dialog (header button in the mapping view).
+Header optional (auto-detected — only when **both** leading fields are
+column names, so a drug literally named "Code" is never eaten), the two
 name columns optional:
 
 ```csv
@@ -103,7 +116,7 @@ Rules:
 - rows with an empty `icode` or `working_code` are **skipped** (counted);
 - rows whose icode is already mapped to a **different** working_code are
   **conflicts** — never overwritten silently; the dry-run preview lists
-  them for manual resolution in the list view;
+  them for manual resolution in the mapping view;
 - everything else is applied as `match_method = 'approved'` (the hospital's
   own list is treated as human-confirmed), names recorded when present;
 - unparsable lines are reported with their line numbers, never dropped

@@ -80,31 +80,36 @@ does it violate any other?"
   the Tauri API module is loaded at runtime from `esm.sh`). Version
   `0.1.0`. Two workspaces: `balance` (src-tauri, host target) and
   `balance-frontend` (src/, wasm target).
-- **Backend** (`src-tauri`): 13 Tauri commands — 2 settings, 5 HOSxP, 6
-  INVS. HOSxP: `sqlx` MySQL pool (12 max / 3 min connections, global
-  `OnceLock<RwLock<Option<MySqlPool>>>`). INVS: a single `tiberius`
-  client in `Arc<Mutex<Option<...>>>` managed state — one connection,
-  held for the app's lifetime, serialised behind a mutex.
+- **Backend** (`src-tauri`): 26 Tauri commands — 2 settings, 6 HOSxP, 6
+  INVS, 11 mapping, 1 reconcile. HOSxP: `sqlx` MySQL pool (12 max / 3 min
+  connections, global `OnceLock<RwLock<Option<MySqlPool>>>`). INVS: a
+  single `tiberius` client in `Arc<Mutex<Option<...>>>` managed state —
+  one connection, held for the app's lifetime, serialised behind a mutex.
 - **Data sources (read-only)**:
   - HOSxP MySQL: `opitemrece` (dispensed quantities), `drugitems`
-    (drug catalog). Calendar months.
+    (drug catalog). All queries use the fiscal-year window (shared
+    `fiscal.rs` definition: FY N = 1 Oct N−1 … 30 Sep N), buckets in
+    fiscal-month order.
   - INVS SQL Server: `MS_IVO` + `MS_IVO_C` (purchase invoices/lines),
-    `DRUG_GN` (drug names). Thai fiscal months, `RECEIVE_DATE` stored as
-    `YYYYMMDD` integers. TLS is disabled (`EncryptionLevel::NotSupported`
+    `DRUG_GN` (drug names). Same fiscal definition, `RECEIVE_DATE` stored
+    as `YYYYMMDD` integers. TLS is disabled (`EncryptionLevel::NotSupported`
     + `trust_cert`).
-- **Frontend** (`src/src`, ~3.8K lines Rust): two contexts
-  (`DashboardContext`, `DbConfigContext`), six components (header, two
-  search panels, two canvas charts, settings drawer, KPI bar). Charts are
-  a hand-rolled `<canvas>` renderer (12 bars + 3-month moving average +
-  HTML tooltip) replacing ECharts. Thai fiscal-year helpers and number
-  formatting live in `models.rs` with `wasm_bindgen_test` unit tests.
+- **Frontend** (`src/src`, ~5.2K lines Rust): three contexts
+  (`DashboardContext`, `DbConfigContext`, `MappingContext`) and eight
+  components (header, two search panels, two canvas charts, settings
+  drawer, KPI bar, the full-screen mapping view, the discrepancy strip, the
+  panel match-status chip). Charts are a hand-rolled `<canvas>` renderer
+  (12 fiscal-month bars + 3-month moving average + HTML tooltip) replacing
+  ECharts. Thai fiscal-year helpers and number formatting live in
+  `models.rs` with `wasm_bindgen_test` unit tests.
 - **Settings**: connection configs serialised to `settings.json`
   (app-data dir), AES-256-GCM encrypted with a master key kept in the OS
   keychain (`encryptman-keyring`). Boot auto-connect from saved settings.
-- **CI** (4 jobs): Rust format + clippy, Trunk build, design-token
-  enforcement (no raw hex outside `theme.css`), `cargo-deny`. **No test
-  job runs** — the `wasm_bindgen_test`s are never executed in CI, and the
-  backend has zero tests.
+- **CI** (4 jobs): Rust format + clippy **+ backend unit tests**
+  (`cargo test -p balance`, runs the migration + mapping + reconcile
+  fixtures), Trunk build, design-token enforcement (no raw hex outside
+  `theme.css`), `cargo-deny`. The frontend `wasm_bindgen_test`s are still
+  never executed in CI (Phase 6 adds a runner).
 - **Known hard-coded context**: the header brand-sub title is
   `โรงพยาบาลสระโบสถ์` (a specific hospital) — a placeholder that needs
   to become configurable.
@@ -123,13 +128,17 @@ does it violate any other?"
    plots calendar months (ม.ค. = January); the INVS chart plots fiscal
    months (ต.ค. = October) in the *same 12 columns*. A "side-by-side
    comparison" of month N on the left and month N on the right is
-   actually comparing different months, three months out of phase. (Phase 2.)
+   actually comparing different months, three months out of phase.
+   *Fixed in Phase 2* — both panels plot the same fiscal axis, and the
+   HOSxP queries use fiscal-year windows, not calendar years.
 
 3. **Nothing computes discrepancies.** The README's promise is "identify
    discrepancies and ensure accurate reporting", but no command computes a
    unit price (INVS value ÷ HOSxP quantity), a month-over-month variance,
    a quantity-vs-value ratio, or flags anything. The comparison is left
-   entirely to eyeballing two charts. (Phase 2.)
+   entirely to eyeballing two charts.
+   *Fixed in Phase 2* — the `reconcile` engine + `reconcile_drug` command
+   + the discrepancy strip (see `docs/reconciliation.md`).
 
 4. **The app cannot boot offline.** `index.html` imports
    `https://esm.sh/@tauri-apps/api@2` at runtime and everything else
@@ -165,12 +174,16 @@ does it violate any other?"
 9. **Tests exist but never run.** `models.rs` has `wasm_bindgen_test`
    unit tests; the backend has none. CI runs no test job at all. A
    regression in fiscal-year math, formatting, or the chart renderer
-   would ship silently. (Phase 6.)
+   would ship silently. *Partially fixed* — the backend now has 51 unit
+   tests (store/mapping/reconcile/fiscal) and CI runs `cargo test -p
+   balance`; the frontend `wasm_bindgen_test`s still lack a runner.
+   (Phase 6.)
 
 10. **No export, no reporting, no alerts.** Nothing can be exported to
-    Excel/CSV/PDF (a stated roadmap item), there is no multi-year
-    comparison, and the KPI bar is INVS-heavy (INVS totals + drug count +
-    a HOSxP connection status) with no HOSxP quantity totals. (Phase 5/7/8.)
+    Excel/CSV/PDF (a stated roadmap item), and there is no multi-year
+    comparison. *Partially fixed* — the KPI bar is now symmetric (HOSxP
+    ยอดจ่ายรวม + INVS ยอดซื้อรวม + mapping readiness); the old HOSxP
+    connection-status card is gone. (Phase 5/7/8.)
 
 11. **No connection health monitoring.** The MySQL pool never
     `test_before_acquire`s; if the database restarts, queries fail with
@@ -206,11 +219,13 @@ workflow. *This phase has no acceptance shortcuts: mapping is the product.*
 
 ### Matching workflow
 
-- [x] **Side-by-side comparison view.** The mapping drawer (แมปยา in the
-  header) lists HOSxP drugs with their mapping state; per row the
-  pharmacist opens scored INVS candidates (code, name, similarity %) and
-  gets match / skip actions. Keyboard accessible (Enter-driven search,
-  focusable row actions), batch-confirmable.
+- [x] **Master–detail comparison view.** The mapping view (แมปยา in the
+  header) is full-screen: the left pane lists HOSxP drugs with their
+  mapping state (debounced search + status-filter chips), the right pane
+  shows the selected drug's scored INVS candidates (code, name, similarity
+  %) with match / skip actions and the manual INVS search. Keyboard
+  accessible (Enter-driven search, focusable row actions), batch-confirmable;
+  after a change the selection auto-advances to the next unmapped row.
 - [x] **Auto-suggest candidates.** A pure-Rust normalizer (lowercase, strip
   parens/dose-strength suffixes, unify Thai `รร/รา/รึ` spellings) +
   similarity scoring (normalized equality → token overlap → Levenshtein),
@@ -220,9 +235,12 @@ workflow. *This phase has no acceptance shortcuts: mapping is the product.*
   search), break a wrong link, and mark a HOSxP drug as "no INVS
   equivalent" (e.g. no longer procured) — with the reason recorded in
   `mapping_exclusions`; mappings and exclusions are mutually exclusive.
-- [x] **Bulk import.** Paste an `icode ↔ working_code` CSV with a dry-run
-  preview: "N will be added, M will conflict — review before applying";
-  conflicts are never overwritten silently.
+  One icode holds **one** active link — remapping replaces, breaking truly
+  unmaps (no hidden stale rows).
+- [x] **Bulk import.** Paste an `icode ↔ working_code` CSV (dialog opened
+  from the mapping view header) with a dry-run preview: "N will be added,
+  M will conflict — review before applying"; conflicts are never
+  overwritten silently.
 - [x] **Match status on both panels.** Once mapped, the HOSxP panel shows
   "แมปแล้ว ↔ INVS: <working_code>" and vice versa (plus ยังไม่แมป /
   ไม่มีใน INVS states) — refreshed on every selection.
@@ -239,6 +257,10 @@ are visible as unmapped, never silently treated as equivalent.
 ## Phase 2: Reconciliation & Discrepancy Engine (the core value)
 
 With mappings in place, Balance can finally do what it claims: compare.
+As built, the comparison is **year-first**: a hospital buys a drug once or
+twice a year and dispenses from that stock for months, so month-level
+purchase↔dispensing mismatches are normal, not anomalies.  Details and
+worked examples in `docs/reconciliation.md`.
 
 ### Aligned axes first
 
@@ -251,31 +273,50 @@ With mappings in place, Balance can finally do what it claims: compare.
   every comparison below.
 - [x] **Test the alignment.** Unit tests for fiscal-year boundary months
   (September → October flips, January stays in-year, 12-entry arrays).
+- [x] **Fiscal-year windows on both sides.** The HOSxP queries were
+  calendar-year filtered (`YEAR(vstdate) = ?`); `fiscal.rs` now owns the
+  single boundary definition (`fiscal_year_range` / `fiscal_mysql_window`)
+  and both sides query the same FY N = 1 Oct N−1 … 30 Sep N window, with
+  boundary unit tests (30 Sep N ∈ FY N, 1 Oct N ∈ FY N+1).
 
 ### Discrepancy math (pure Rust module)
 
 - [x] **Unit price.** For a mapped drug: `unit_price = INVS value ÷ HOSxP
-  quantity` (per month and per year). Guard against division by zero; a
-  zero-quantity month renders "no dispensing data" instead of ∞.
-- [x] **Month-over-month variance** on both quantity and value, and a
-  per-month `purchased minus dispensed` delta. Months with purchases but
-  no dispensing (or vice versa) are flagged, not averaged away.
+  quantity` per year (cost per dispensed unit). Guard against division by
+  zero; a zero-quantity year renders "no data" instead of ∞.  Monthly
+  prices are *purchase* prices (value ÷ qty on purchase months only) —
+  comparing purchase value against the same month's dispensing is
+  meaningless with stock bought in bulk.
+- [x] **Month-level data, not flags.** Per-month `purchased minus
+  dispensed` deltas and the **cumulative stock curve** (running sum) are
+  reported as data for the table — a bulk purchase piling stock up and
+  running it down over the year is normal.  (Deviation from the original
+  plan: months with purchases but no dispensing — or vice versa — are **not**
+  flagged individually; that produced a false alarm on nearly every
+  bulk-bought drug.)
 - [x] **Discrepancy flags** (rule-based, deterministic, unit-tested):
   - *Zero use, full purchase* — purchased but nothing dispensed all year.
   - *Dispensed without purchase* — dispensed but never purchased (legacy
     stock? data problem?).
-  - *Unit-price spike* — a month's unit price > N× the yearly median.
-  - *Seasonal flip* — dispensing peaks in a month with no purchase peak.
+  - *Unit-price spike* — a purchase month's price > N× the median monthly
+    purchase price (a single purchase in the year can never spike).
+  - *Year-end stock gap* — the stock curve ends more than N% of yearly
+    dispensing from zero (leftover stock carried past year end / over-use
+    from previous years).  *(Added in place of the original seasonal-flip,
+    which is meaningless when purchases are bulk.)*
   - Thresholds are configurable in settings (Phase 8 adds the alert UI).
 - [x] **Discrepancy view.** A per-drug detail strip under (or beside) the
-  charts listing the flags with the underlying numbers and the exact
-  months, so the pharmacist can verify against the source systems.
-  Every flag must be traceable to the two numbers that produced it.
+  charts: year-level headline (totals, unit price, coverage ratio =
+  dispensed ÷ purchased, variation), a 12-fiscal-month table (จ่าย / ซื้อ /
+  สต็อกสะสม / ราคาซื้อต่อหน่วย) and the flags with the underlying numbers
+  and the exact months, so the pharmacist can verify against the source
+  systems.  Every flag is traceable to the two numbers that produced it.
 
-**Acceptance:** both charts plot the same 12 fiscal months; a mapped drug
-shows unit price and per-month deltas; all flag rules are pure functions
-with unit tests and fixtures; a zero-data month is displayed as "no data",
-never as a comparable number.
+**Acceptance:** both charts plot the same 12 fiscal months over the same
+fiscal-year window; a mapped drug shows unit price, coverage, and the
+monthly stock curve; all flag rules are pure functions with unit tests and
+fixtures; a zero-data year is displayed as "no data", never as a
+comparable number.
 
 **Status:** DONE (Phase 2)
 

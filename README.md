@@ -16,9 +16,14 @@
 
 ## Features
 
-- Side-by-side comparison of HOSxP (quantity) and INVS (value)
+- Side-by-side comparison of HOSxP (quantity) and INVS (value), on the same
+  Thai fiscal-year axis (FY N = 1 Oct N−1 … 30 Sep N)
+- Drug mapping between HOSxP `icode` and INVS `working_code` (local SQLite
+  store): auto-suggest candidates with Thai-aware name scoring, batch
+  auto-match, bulk CSV import, match status on both panels
+- Year-first reconciliation for mapped drugs: unit price, coverage ratio,
+  the cumulative stock curve and rule-based discrepancy flags
 - Independent drug search using HOSxP `icode` or INVS `working_code`
-- Thai fiscal year selection with automatic date range calculation
 - Interactive bar + line trend charts rendered on canvas (custom Rust renderer)
 - Encrypted connection settings stored in the OS keyring
 - Cross-platform support: Windows, macOS, and Linux
@@ -73,6 +78,10 @@ trunk serve --config src/Trunk.toml
 
 - [ROADMAP.md](docs/ROADMAP.md) — where the product is going, phase by phase
 - [DESIGN.md](docs/DESIGN.md) — design system, tokens, and UI conventions
+- [architecture.md](docs/architecture.md) — modules, IPC surface, data flow
+- [database.md](docs/database.md) — local store schema and migrations
+- [mapping.md](docs/mapping.md) — matching heuristics, scoring, import format
+- [reconciliation.md](docs/reconciliation.md) — discrepancy rules and worked examples
 
 ## Contributing
 
