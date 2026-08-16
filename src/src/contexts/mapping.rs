@@ -1,10 +1,12 @@
 //! Drug-mapping state and actions (Phase 1).
 //!
-//! Owns the mapping drawer's data: the HOSxP list with per-row state, the
-//! open suggestion session, the batch auto-match preview, the CSV import
-//! flow, and the match-status chips shown on the dashboard panels (driven by
-//! whichever drugs are currently selected in [`DashboardContext`]).  All
-//! backend communication goes through [`crate::services`].
+//! Owns the full-screen mapping view's data: the HOSxP list with per-row
+//! state and a status filter, the open detail session for the selected drug
+//! (scored INVS candidates + match actions), the batch auto-match preview,
+//! the CSV import flow, and the match-status chips shown on the dashboard
+//! panels (driven by whichever drugs are currently selected in
+//! [`DashboardContext`]).  All backend communication goes through
+//! [`crate::services`].
 
 use leptos::prelude::*;
 use wasm_bindgen::JsValue;
@@ -22,22 +24,50 @@ fn log_err(tag: &str, message: &str) {
   web_sys::console::error_1(&JsValue::from_str(&format!("{tag}: {message}")));
 }
 
-/// Which section of the mapping drawer is active.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum MappingTab {
-  /// Search + list + suggest + auto-match.
-  List,
-  /// Bulk CSV import.
-  Csv,
+/// Status filter for the mapping list.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum MappingFilter {
+  /// No filter — every loaded row.
+  All,
+  /// Only rows with `status == "unmapped"`.
+  Unmapped,
+  /// Only rows with `status == "mapped"`.
+  Mapped,
+  /// Only rows with `status == "no_invs"`.
+  NoInvs,
 }
 
-/// An open suggestion session for one HOSxP row.
+impl MappingFilter {
+  /// Whether a row passes this filter.
+  #[must_use]
+  pub fn matches(self, row: &MappingRow) -> bool {
+    match self {
+      Self::All => true,
+      Self::Unmapped => row.status == "unmapped",
+      Self::Mapped => row.status == "mapped",
+      Self::NoInvs => row.status == "no_invs",
+    }
+  }
+
+  /// Thai label for the filter chip.
+  #[must_use]
+  pub fn label(self) -> &'static str {
+    match self {
+      Self::All => "ทั้งหมด",
+      Self::Unmapped => "ยังไม่แมป",
+      Self::Mapped => "แมปแล้ว",
+      Self::NoInvs => "ไม่มีใน INVS",
+    }
+  }
+}
+
+/// The open detail session for one HOSxP row: its candidates (or loading)
+/// plus the row itself so the pane renders without extra lookups.
 #[derive(Clone, Debug)]
-pub struct Suggestion {
-  pub icode: String,
-  pub drug_name: String,
+pub struct DetailSession {
+  pub row: MappingRow,
   pub candidates: Vec<MappingCandidate>,
-  pub loading: bool,
+  pub candidates_loading: bool,
 }
 
 /// Shared drug-mapping state, exposed through Leptos context.
@@ -54,12 +84,14 @@ pub struct MappingContext {
   search_gen: RwSignal<u64>,
   /// The list-view search query.
   pub query: RwSignal<String>,
+  /// Status filter applied to the loaded rows.
+  pub filter: RwSignal<MappingFilter>,
   /// Headline counts (`mapping_stats`).
   pub stats: RwSignal<Option<MappingStats>>,
-  /// Active drawer section.
-  pub active_tab: RwSignal<MappingTab>,
-  /// The open suggestion session (or `None`).
-  pub suggestion: RwSignal<Option<Suggestion>>,
+  /// The icode currently opened in the detail pane (or `None`).
+  pub selected_icode: RwSignal<Option<String>>,
+  /// The open detail session (or `None`).
+  pub detail: RwSignal<Option<DetailSession>>,
   /// The pending batch auto-match preview (or `None`).
   pub auto_preview: RwSignal<Option<AutoMatchResult>>,
   /// Whether the auto-match preview is being computed.
@@ -89,9 +121,10 @@ impl MappingContext {
       rows_loading: RwSignal::new(false),
       search_gen: RwSignal::new(0u64),
       query: RwSignal::new(String::new()),
+      filter: RwSignal::new(MappingFilter::All),
       stats: RwSignal::new(None),
-      active_tab: RwSignal::new(MappingTab::List),
-      suggestion: RwSignal::new(None),
+      selected_icode: RwSignal::new(None),
+      detail: RwSignal::new(None),
       auto_preview: RwSignal::new(None),
       auto_loading: RwSignal::new(false),
       csv_text: RwSignal::new(String::new()),
@@ -128,16 +161,15 @@ impl MappingContext {
 
   // ── List view ──────────────────────────────────────────────────────
 
-  /// Fetch the list rows for the current query.  A generation counter drops
-  /// responses from superseded searches (Enter pressed twice in a row, or a
-  /// query edited mid-flight), so an older, slower response can never
-  /// overwrite the results of a newer search.
+  /// Fetch the list rows for the current query (up to 100).  A generation
+  /// counter drops responses from superseded searches, so an older, slower
+  /// response can never overwrite the results of a newer search.
   pub async fn search_rows(self) {
     self.search_gen.update(|g| *g += 1);
     let gen = self.search_gen.get_untracked();
     self.rows_loading.set(true);
     let query = self.query.get_untracked();
-    match commands::mapping_list_rows(&query, 30).await {
+    match commands::mapping_list_rows(&query, 100).await {
       Ok(rows) => {
         if self.search_gen.get_untracked() == gen {
           self.rows.set(rows);
@@ -164,14 +196,13 @@ impl MappingContext {
     }
   }
 
-  /// Open the drawer with a fresh query and load it.  Session state from a
-  /// previous visit (open suggestion, bulk preview, auto-match preview) is
-  /// cleared so a reopened drawer never shows stale candidates.
+  /// Open the mapping view with a fresh state: stale detail/auto/bulk
+  /// sessions are cleared, then the default list and stats are loaded.
   pub async fn open(self) {
-    self.active_tab.set(MappingTab::List);
-    self.suggestion.set(None);
-    self.bulk_preview.set(None);
+    self.selected_icode.set(None);
+    self.detail.set(None);
     self.auto_preview.set(None);
+    self.bulk_preview.set(None);
     self.reload().await;
   }
 
@@ -198,39 +229,43 @@ impl MappingContext {
     }
   }
 
-  // ── Suggest + match ────────────────────────────────────────────────
+  // ── Detail session (select + suggest + match) ──────────────────────
 
-  /// Open the suggestion session for a row and fetch its candidates.
-  pub async fn open_suggestion(self, row: &MappingRow) {
-    self.suggestion.set(Some(Suggestion {
-      icode: row.icode.clone(),
-      drug_name: row.drug_name.clone(),
+  /// Open the detail session for a row and fetch its scored candidates.
+  pub async fn select_row(self, row: MappingRow) {
+    self.selected_icode.set(Some(row.icode.clone()));
+    self.detail.set(Some(DetailSession {
+      row: row.clone(),
       candidates: Vec::new(),
-      loading: true,
+      candidates_loading: true,
     }));
+    self.load_candidates(&row).await;
+  }
+
+  /// Fetch (or refresh) the candidate list for the current detail row.
+  pub async fn load_candidates(self, row: &MappingRow) {
     match commands::mapping_suggest(&row.drug_name, 10).await {
       Ok(candidates) => {
-        self.suggestion.update(|s| {
-          if let Some(s) = s {
-            s.candidates = candidates;
-            s.loading = false;
+        self.detail.update(|d| {
+          if let Some(d) = d {
+            if d.row.icode == row.icode {
+              d.candidates = candidates;
+              d.candidates_loading = false;
+            }
           }
         });
       }
       Err(e) => {
-        self.suggestion.update(|s| {
-          if let Some(s) = s {
-            s.loading = false;
+        self.detail.update(|d| {
+          if let Some(d) = d {
+            if d.row.icode == row.icode {
+              d.candidates_loading = false;
+            }
           }
         });
         self.show_feedback(e.message, false);
       }
     }
-  }
-
-  /// Close the suggestion session.
-  pub fn close_suggestion(self) {
-    self.suggestion.set(None);
   }
 
   /// Confirm a suggested candidate (method `approved`).
@@ -269,7 +304,7 @@ impl MappingContext {
       .await;
   }
 
-  /// Break the row's current link.
+  /// Break the detail row's current link.
   pub async fn remove_link(self, row: &MappingRow) {
     let Some(working_code) = &row.working_code else {
       return;
@@ -278,7 +313,7 @@ impl MappingContext {
     self.after_change(result, "ยกเลิกการแมปแล้ว".to_owned()).await;
   }
 
-  /// Mark the row as having no INVS equivalent.
+  /// Mark the detail row as having no INVS equivalent.
   pub async fn mark_no_invs(self, row: &MappingRow, reason: &str) {
     let result = commands::mapping_mark_no_invs(&row.icode, reason).await;
     self
@@ -295,15 +330,33 @@ impl MappingContext {
   }
 
   /// Common post-change handling: feedback + reload + refresh the panel
-  /// chips (the currently selected drug may have changed state).
+  /// chips, then auto-advance the detail selection to the next unmapped
+  /// row (so a batch session never makes the pharmacist return to the
+  /// list by hand).
   async fn after_change(self, result: Result<(), crate::models::BackendError>, ok_msg: String) {
     match result {
       Ok(()) => {
         self.show_feedback(ok_msg, true);
         self.reload().await;
         self.refresh_links().await;
+        self.advance_selection().await;
       }
       Err(e) => self.show_feedback(e.message, false),
+    }
+  }
+
+  /// If the selected row is no longer the first unmapped row in the list,
+  /// select the next unmapped one after it (stays put when there is none).
+  async fn advance_selection(self) {
+    let Some(changed) = self.selected_icode.get_untracked() else {
+      return;
+    };
+    let rows = self.rows.get_untracked();
+    let Some(idx) = rows.iter().position(|r| r.icode == changed) else {
+      return;
+    };
+    if let Some(next) = rows[idx + 1..].iter().find(|r| r.status == "unmapped") {
+      self.select_row(next.clone()).await;
     }
   }
 
@@ -313,7 +366,7 @@ impl MappingContext {
   pub async fn auto_preview(self) {
     self.auto_loading.set(true);
     let query = self.query.get_untracked();
-    match commands::mapping_auto_match(&query, 50, 0.0, true).await {
+    match commands::mapping_auto_match(&query, 100, 0.0, true).await {
       Ok(result) => self.auto_preview.set(Some(result)),
       Err(e) => {
         self.auto_preview.set(None);
@@ -327,13 +380,14 @@ impl MappingContext {
   pub async fn auto_apply(self) {
     self.auto_loading.set(true);
     let query = self.query.get_untracked();
-    match commands::mapping_auto_match(&query, 50, 0.0, false).await {
+    match commands::mapping_auto_match(&query, 100, 0.0, false).await {
       Ok(result) => {
         self.auto_preview.set(None);
         let n = result.applied;
         self.show_feedback(format!("แมปอัตโนมัติแล้ว {n} รายการ (คะแนน ≥ 95%)"), true);
         self.reload().await;
         self.refresh_links().await;
+        self.advance_selection().await;
       }
       Err(e) => self.show_feedback(e.message, false),
     }
@@ -366,6 +420,7 @@ impl MappingContext {
         self.show_feedback(format!("นำเข้าแล้ว {} รายการ", result.added), true);
         self.reload().await;
         self.refresh_links().await;
+        self.advance_selection().await;
       }
       Err(e) => self.show_feedback(e.message, false),
     }

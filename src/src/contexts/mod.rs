@@ -6,4 +6,4 @@ pub mod mapping;
 
 pub use dashboard::DashboardContext;
 pub use db_config::{DbConfigContext, SettingsTab};
-pub use mapping::{MappingContext, MappingTab};
+pub use mapping::{DetailSession, MappingContext, MappingFilter};
