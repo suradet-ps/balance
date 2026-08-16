@@ -50,8 +50,11 @@ to `MIGRATIONS` in `src-tauri/src/store.rs`.
 
 - `UNIQUE (icode, working_code)` — re-confirming a link is an upsert.
 - Indexes on `icode` and `working_code` (both panels look up by code).
-- One icode may hold several working_code links; "the" link for display is
-  the latest by `id`.
+- **One icode holds at most one active link**: `repo::upsert` deletes any
+  previous link for the icode before inserting, so remapping replaces rather
+  than stacks rows.  The UI reads only the latest link everywhere, so a
+  hidden stale link (which would silently survive "ยกเลิกการแมป") must not
+  exist.  A working_code may still map to several icodes.
 
 ### `mapping_exclusions` — "no INVS equivalent" markers (migration 0002)
 
