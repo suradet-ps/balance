@@ -107,6 +107,14 @@ fn is_thai(c: char) -> bool {
     ('\u{0E01}'..='\u{0E7F}').contains(&c)
 }
 
+/// Thai numerals (`๐` – `๙`): `char::is_ascii_digit` does not see them, but
+/// they encode the same numbers as ASCII digits and must be stripped the same
+/// way (a drug listed as `500 มก.` in one system and `๕๐๐ มก.` in the other
+/// must normalize identically).
+fn is_thai_digit(c: char) -> bool {
+    ('\u{0E50}'..='\u{0E59}').contains(&c)
+}
+
 /// Normalize a drug name into a canonical sorted token set.
 #[must_use]
 pub fn normalize(name: &str) -> String {
@@ -153,15 +161,15 @@ fn strip_dose_parens(s: &str) -> String {
 }
 
 fn parens_is_dose(content: &str) -> bool {
-    if content.chars().any(|c| c.is_ascii_digit()) {
-        return true;
-    }
     for tok in tokenize(content) {
         if keep_token(&tok) {
             return false;
         }
     }
-    // No surviving token → the parenthetical was only dose/unit words.
+    // No surviving token → the parenthetical was only dose/unit words or
+    // numbers (e.g. `(500 mg)`, `(10 มิลลิกรัม)`, `(500)`).
+    // A paren that also contains a real word — a translation such as
+    // `(พาราเซตามอล 500 มก.)` — is kept so the translation survives.
     !content.trim().is_empty()
 }
 
@@ -218,7 +226,7 @@ fn tokenize(s: &str) -> Vec<String> {
             prev = None;
             continue;
         }
-        let cls = (c.is_ascii_digit(), is_thai(c));
+        let cls = (c.is_ascii_digit() || is_thai_digit(c), is_thai(c));
         if let Some(p) = prev {
             let boundary = cls.0 != p.0 || (cls.0 == p.0 && cls.1 != p.1);
             if boundary && !cur.is_empty() {
@@ -238,7 +246,7 @@ fn keep_token(tok: &str) -> bool {
     if tok.is_empty() {
         return false;
     }
-    if tok.chars().all(|c| c.is_ascii_digit()) {
+    if tok.chars().all(|c| c.is_ascii_digit() || is_thai_digit(c)) {
         return false;
     }
     if DOSE_TOKENS.contains(&tok) {
@@ -342,6 +350,30 @@ mod tests {
             "paracetamol พาราเซตามอล"
         );
         assert_eq!(normalize("Amoxicillin (500 mg)"), "amoxicillin");
+    }
+
+    #[test]
+    fn parens_with_both_dose_and_translation_keep_the_translation() {
+        // Real-world shape: the parenthetical mixes a strength with the Thai
+        // translation.  The dose must go, the translation must survive.
+        assert_eq!(
+            normalize("Amoxicillin (แอมม็อกซิซิลลิน 500 มก.)"),
+            "amoxicillin แอมม็อกซิซิลลิน"
+        );
+        assert_eq!(
+            normalize("Paracetamol (พาราเซตามอล 500 mg)"),
+            "paracetamol พาราเซตามอล"
+        );
+    }
+
+    #[test]
+    fn thai_numerals_are_stripped_like_ascii_digits() {
+        assert_eq!(
+            normalize("พาราเซตามอล ๕๐๐ มก."),
+            normalize("พาราเซตามอล 500 มก.")
+        );
+        assert_eq!(normalize("ยา ๑๒๓"), normalize("ยา 123"));
+        assert_eq!(normalize("พาราเซตามอล 500 มก."), "พาราเซตามอล");
     }
 
     #[test]

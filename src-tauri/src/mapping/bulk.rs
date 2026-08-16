@@ -34,10 +34,19 @@ const HEADER_NAMES: &[&str] = &[
 ];
 
 fn is_header(record: &StringRecord) -> bool {
-    record.iter().any(|field| {
-        let f = field.trim().to_lowercase();
+    // A header row is recognized only when BOTH leading fields look like
+    // column names.  Requiring both makes it impossible for a real data row
+    // to be eaten: a working_code or drug name that happens to equal one of
+    // these words (e.g. a drug literally named "Code") can no longer
+    // disguise a data line as a header.
+    if record.len() < 2 {
+        return false;
+    }
+    let is_name = |f: &str| {
+        let f = f.trim().to_lowercase();
         HEADER_NAMES.contains(&f.as_str())
-    })
+    };
+    is_name(&record[0]) && is_name(&record[1])
 }
 
 /// Parse the CSV text into rows.  Returns `(rows, errors)` where each error
@@ -139,5 +148,23 @@ icode,working_code,drug_name_hosxp,drug_name_invs
             parse_bulk_csv("\"041234\",\"WA001\",\"Paracetamol, พาราเซตามอล\",\"\"\n");
         assert!(errors.is_empty(), "{errors:?}");
         assert_eq!(rows[0].drug_name_hosxp, "Paracetamol, พาราเซตามอล");
+    }
+
+    #[test]
+    fn header_detection_requires_both_leading_fields() {
+        // A drug named "Code" (or a working_code literally "code") must not
+        // make a data row look like a header.
+        let (rows, errors) = parse_bulk_csv("041234,code,Amoxicillin\ncode,WA001\n");
+        assert_eq!(rows.len(), 2, "both data rows survive");
+        assert!(errors.is_empty(), "{errors:?}");
+        assert_eq!(rows[0].working_code, "code");
+        assert_eq!(rows[1].icode, "code");
+    }
+
+    #[test]
+    fn header_with_both_column_names_is_still_consumed() {
+        let (rows, errors) = parse_bulk_csv("icode,working_code\n041234,WA001\n");
+        assert_eq!(rows.len(), 1);
+        assert!(errors.is_empty(), "{errors:?}");
     }
 }

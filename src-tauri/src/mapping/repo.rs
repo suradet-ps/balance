@@ -66,6 +66,11 @@ fn row_to_link(row: &rusqlite::Row<'_>) -> rusqlite::Result<LinkRow> {
 
 /// Insert or update a mapping (and clear any exclusion for the same icode —
 /// the two states are mutually exclusive).  Inside a transaction.
+///
+/// A HOSxP drug has **one** active link at a time: remapping an icode to a
+/// different working code replaces the previous link instead of stacking a
+/// second row.  Otherwise the UI (which reads only the latest link) would
+/// silently keep the old mapping alive after "ยกเลิกการแมป".
 #[allow(clippy::too_many_arguments)]
 pub fn upsert(
     conn: &mut Connection,
@@ -82,16 +87,12 @@ pub fn upsert(
         params![icode],
     )
     .map_err(sql_err)?;
+    tx.execute("DELETE FROM drug_mappings WHERE icode = ?1", params![icode])
+        .map_err(sql_err)?;
     tx.execute(
         "INSERT INTO drug_mappings
             (icode, working_code, drug_name_hosxp, drug_name_invs, match_method, match_score)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6)
-         ON CONFLICT (icode, working_code) DO UPDATE SET
-            drug_name_hosxp = excluded.drug_name_hosxp,
-            drug_name_invs  = excluded.drug_name_invs,
-            match_method    = excluded.match_method,
-            match_score     = excluded.match_score,
-            updated_at      = datetime('now')",
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
         params![
             icode,
             working_code,
@@ -274,6 +275,58 @@ mod tests {
         assert!(links.contains_key("A1"));
         assert!(links.get("A2").map(|(w, _)| w.as_str()) == Some("W1"));
         assert!(!links.contains_key("A3"));
+    }
+
+    #[test]
+    fn remapping_an_icode_replaces_the_previous_link() {
+        let mut conn = repo_db();
+        upsert(&mut conn, "A1", "W1", "", "", "manual", None).expect("A1→W1");
+        upsert(&mut conn, "A1", "W2", "", "", "manual", None).expect("A1→W2");
+
+        // Exactly one row per icode: the old link is gone, not hidden.
+        let link = link_by_icode(&conn, "A1").expect("read");
+        let (_, wc, ..) = link.expect("new link exists");
+        assert_eq!(wc, "W2");
+        let links = links_for_icodes(&conn, &["A1"]).expect("batch read");
+        assert_eq!(links.get("A1").map(|(w, _)| w.as_str()), Some("W2"));
+
+        // Breaking the visible link really unmaps the drug — no stale
+        // earlier mapping resurfaces.
+        remove(&conn, "A1", "W2").expect("remove");
+        assert!(link_by_icode(&conn, "A1").expect("read").is_none());
+        assert!(
+            links_for_icodes(&conn, &["A1"])
+                .expect("batch read")
+                .is_empty()
+        );
+    }
+
+    #[test]
+    fn re_confirming_the_same_pair_is_still_an_upsert() {
+        let mut conn = repo_db();
+        upsert(&mut conn, "A1", "W1", "ยา A", "Drug A", "auto", Some(0.9)).expect("first");
+        upsert(
+            &mut conn,
+            "A1",
+            "W1",
+            "ยา A ใหม่",
+            "Drug A ใหม่",
+            "approved",
+            Some(0.99),
+        )
+        .expect("same pair again");
+        let (_, wc, name_h, name_i, method, score) = link_by_icode(&conn, "A1")
+            .expect("read")
+            .expect("still linked");
+        assert_eq!(wc, "W1");
+        assert_eq!(name_h, "ยา A ใหม่");
+        assert_eq!(name_i, "Drug A ใหม่");
+        assert_eq!(method, "approved");
+        assert_eq!(score, Some(0.99));
+        let total: i64 = conn
+            .query_row("SELECT COUNT(*) FROM drug_mappings", [], |r| r.get(0))
+            .expect("count");
+        assert_eq!(total, 1);
     }
 
     #[test]
