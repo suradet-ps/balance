@@ -271,6 +271,27 @@ pub async fn invs_get_top_drugs_by_value(
     Ok(results)
 }
 
+/// Cheap round-trip for the frontend's connection-health poll.  Fully
+/// drains the result stream so the reply has actually arrived.
+#[tauri::command]
+pub async fn invs_ping(state: tauri::State<'_, InvsDbState>) -> Result<(), String> {
+    let mut guard = state.0.lock().await;
+    let client = guard
+        .as_mut()
+        .ok_or_else(|| "ยังไม่ได้เชื่อมต่อฐานข้อมูล INVS".to_string())?;
+
+    let mut stream = client
+        .simple_query("SELECT 1")
+        .await
+        .map_err(|e| format!("Query error: {e}"))?;
+    while let Some(_item) = stream
+        .try_next()
+        .await
+        .map_err(|e| format!("Row error: {e}"))?
+    {}
+    Ok(())
+}
+
 /// Return distinct Thai fiscal years available in MS_IVO (descending).
 #[tauri::command]
 pub async fn invs_get_available_years(

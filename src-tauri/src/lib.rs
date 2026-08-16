@@ -45,6 +45,7 @@ pub fn run() {
             hosxp::commands::hosxp_get_drug_monthly_qty,
             hosxp::commands::hosxp_get_drug_list,
             hosxp::commands::hosxp_get_year_summary,
+            hosxp::commands::hosxp_ping,
             // INVS (SQL Server) commands
             invs::commands::invs_connect,
             invs::commands::invs_get_available_years,
@@ -52,6 +53,7 @@ pub fn run() {
             invs::commands::invs_get_drug_monthly_value,
             invs::commands::invs_get_drug_list,
             invs::commands::invs_get_year_summary,
+            invs::commands::invs_ping,
             // Drug mapping (Phase 1) — local store + matching workflow
             mapping::commands::mapping_status_by_icode,
             mapping::commands::mapping_status_by_working_code,
