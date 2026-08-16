@@ -521,7 +521,9 @@ pub async fn mapping_auto_match(
     } else {
         normalizer::AUTO_MATCH_THRESHOLD
     };
-    let list_limit = limit.clamp(1, 50);
+    // Cap at the same 100 rows the list view shows, so the preview and the
+    // list always agree about what "the current list" means.
+    let list_limit = limit.clamp(1, 100);
     let rows = mapping_list_rows(store.clone(), query, list_limit).await?;
 
     let mut to_match: Vec<AutoMatchPreview> = Vec::new();
