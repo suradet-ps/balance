@@ -242,32 +242,32 @@ With mappings in place, Balance can finally do what it claims: compare.
 
 ### Aligned axes first
 
-- [ ] **Unify both charts on the fiscal calendar.** The HOSxP side
+- [x] **Unify both charts on the fiscal calendar.** The HOSxP side
   switches from calendar-month to fiscal-month alignment (a pure function
   `calendar_to_fiscal_index(month) -> usize` — already exists on the INVS
   side as `cal_to_fiscal_idx`; extract and reuse). The month label row
   becomes identical on both panels: ต.ค. … ก.ย. for the same fiscal year.
   This is a small change with a big honesty payoff — a precondition for
   every comparison below.
-- [ ] **Test the alignment.** Unit tests for fiscal-year boundary months
+- [x] **Test the alignment.** Unit tests for fiscal-year boundary months
   (September → October flips, January stays in-year, 12-entry arrays).
 
 ### Discrepancy math (pure Rust module)
 
-- [ ] **Unit price.** For a mapped drug: `unit_price = INVS value ÷ HOSxP
+- [x] **Unit price.** For a mapped drug: `unit_price = INVS value ÷ HOSxP
   quantity` (per month and per year). Guard against division by zero; a
   zero-quantity month renders "no dispensing data" instead of ∞.
-- [ ] **Month-over-month variance** on both quantity and value, and a
+- [x] **Month-over-month variance** on both quantity and value, and a
   per-month `purchased minus dispensed` delta. Months with purchases but
   no dispensing (or vice versa) are flagged, not averaged away.
-- [ ] **Discrepancy flags** (rule-based, deterministic, unit-tested):
+- [x] **Discrepancy flags** (rule-based, deterministic, unit-tested):
   - *Zero use, full purchase* — purchased but nothing dispensed all year.
   - *Dispensed without purchase* — dispensed but never purchased (legacy
     stock? data problem?).
   - *Unit-price spike* — a month's unit price > N× the yearly median.
   - *Seasonal flip* — dispensing peaks in a month with no purchase peak.
   - Thresholds are configurable in settings (Phase 8 adds the alert UI).
-- [ ] **Discrepancy view.** A per-drug detail strip under (or beside) the
+- [x] **Discrepancy view.** A per-drug detail strip under (or beside) the
   charts listing the flags with the underlying numbers and the exact
   months, so the pharmacist can verify against the source systems.
   Every flag must be traceable to the two numbers that produced it.
@@ -277,7 +277,7 @@ shows unit price and per-month deltas; all flag rules are pure functions
 with unit tests and fixtures; a zero-data month is displayed as "no data",
 never as a comparable number.
 
-**Status:** PENDING
+**Status:** DONE (Phase 2)
 
 ---
 
@@ -623,6 +623,6 @@ The `docs/` directory should grow with the project:
 | `architecture.md` | IPC surface, module map, data flow, command↔view matrix | Done (Phase 1) |
 | `database.md` | Local store schema, migrations, query patterns | Done (Phase 1) |
 | `mapping.md` | Matching heuristics, scoring, bulk-import format | Done (Phase 1) |
-| `reconciliation.md` | Discrepancy rules, thresholds, worked examples | Phase 2 |
+| `reconciliation.md` | Discrepancy rules, thresholds, worked examples | Done (Phase 2) |
 | `perf-baseline.md` | Latency budgets, measurement method, results | Phase 4 |
 | `validation-report.md` | Pilot results, hand-verification log, sign-off | Phase 10 |
