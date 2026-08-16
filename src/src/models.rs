@@ -232,6 +232,57 @@ impl DrugResult {
   }
 }
 
+// ─── Reconciliation (Phase 2) ───────────────────────────────────────
+
+/// The reconciled view of one mapped drug for one fiscal year
+/// (`reconcile_drug`).
+#[derive(Clone, Debug, Deserialize)]
+pub struct ReconcileReport {
+  pub icode: String,
+  pub working_code: String,
+  pub drug_name_hosxp: String,
+  pub drug_name_invs: String,
+  pub reconciliation: Reconciliation,
+}
+
+/// The pure engine's output for one drug/year.
+#[derive(Clone, Debug, Deserialize)]
+pub struct Reconciliation {
+  /// HOSxP dispensed quantity per fiscal month.
+  pub dispensed_qty: Vec<f64>,
+  /// INVS purchased quantity per fiscal month.
+  pub purchased_qty: Vec<f64>,
+  /// INVS purchase value (THB) per fiscal month.
+  pub purchased_value: Vec<f64>,
+  /// Yearly unit price (INVS value ÷ HOSxP qty); `None` = nothing dispensed.
+  pub unit_price_year: Option<f64>,
+  /// Monthly unit price, fiscal order; `None` = no dispensing that month
+  /// (render as "no data", never as a comparable number).
+  pub unit_price_month: Vec<Option<f64>>,
+  /// Per-month purchased − dispensed quantity delta, fiscal order.
+  pub monthly_deltas: Vec<f64>,
+  /// Coefficient of variation of the dispensed quantities.
+  pub cv_dispensed_qty: Option<f64>,
+  /// Coefficient of variation of the purchase values.
+  pub cv_purchased_value: Option<f64>,
+  pub flags: Vec<DiscrepancyFlag>,
+}
+
+/// One discrepancy flag; `kind` is a stable kebab-case string
+/// (`zero-use-full-purchase`, `dispensed-without-purchase`,
+/// `unit-price-spike`, `seasonal-flip`, `one-sided-month`), `month` is the
+/// fiscal index (0 = ต.ค., `None` = whole year).
+#[derive(Clone, Debug, Deserialize)]
+pub struct DiscrepancyFlag {
+  pub kind: String,
+  pub month: Option<usize>,
+  /// `only-dispensed` / `only-purchased` for `one-sided-month`.
+  pub one_sided: Option<String>,
+  pub dispensed_qty: f64,
+  pub purchased_qty: f64,
+  pub purchased_value: f64,
+}
+
 // ─── Backend error ────────────────────────────────────────────────────
 
 /// A rejected Tauri command.  The backend commands return `Result<_, String>`,
@@ -330,23 +381,8 @@ impl ChartSeries {
 
 // ─── Fiscal year utilities ────────────────────────────────────────────
 
-/// Calendar month arrays (index 0 = January).
-pub const THAI_MONTHS_SHORT: [&str; 12] = [
-  "ม.ค.",
-  "ก.พ.",
-  "มี.ค.",
-  "เม.ย.",
-  "พ.ค.",
-  "มิ.ย.",
-  "ก.ค.",
-  "ส.ค.",
-  "ก.ย.",
-  "ต.ค.",
-  "พ.ย.",
-  "ธ.ค.",
-];
-
-/// Fiscal month arrays (index 0 = fiscal month 1 = ต.ค.).
+/// Fiscal month arrays (index 0 = fiscal month 1 = ต.ค.).  Both panels plot
+/// the same fiscal axis, so this is the only month label set the UI needs.
 pub const FISCAL_MONTHS_SHORT: [&str; 12] = [
   "ต.ค.",
   "พ.ย.",
@@ -445,7 +481,6 @@ mod tests {
 
   #[wasm_bindgen_test]
   fn month_arrays_have_twelve_entries() {
-    assert_eq!(THAI_MONTHS_SHORT.len(), 12);
     assert_eq!(FISCAL_MONTHS_SHORT.len(), 12);
   }
 

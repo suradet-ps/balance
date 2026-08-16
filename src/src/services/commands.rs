@@ -12,7 +12,7 @@ use super::tauri::{build_args, invoke};
 use crate::models::{
   AutoMatchResult, BackendError, BulkImportResult, DrugMappingStatus, HosxpDbConfig, HosxpDrugItem,
   HosxpDrugMonthly, InvsDbConfig, InvsDrugItem, InvsDrugMonthlyValue, InvsYearSummary,
-  MappingCandidate, MappingRow, MappingStats, SettingsFile,
+  MappingCandidate, MappingRow, MappingStats, ReconcileReport, SettingsFile,
 };
 
 fn arg<T: Serialize>(value: &T) -> JsValue {
@@ -254,6 +254,19 @@ pub async fn mapping_bulk_import(
     ("dryRun", &JsValue::from_bool(dry_run)),
   ]);
   invoke::<BulkImportResult>("mapping_bulk_import", &args)
+    .await
+    .map_err(BackendError::from_js)
+}
+
+// ─── Reconciliation (Phase 2) ───────────────────────────────────────
+
+/// Reconcile a mapped HOSxP drug against its INVS counterpart.
+pub async fn reconcile_drug(year: i32, icode: &str) -> Result<ReconcileReport, BackendError> {
+  let args = build_args(&[
+    ("year", &JsValue::from(year)),
+    ("icode", &JsValue::from_str(icode)),
+  ]);
+  invoke::<ReconcileReport>("reconcile_drug", &args)
     .await
     .map_err(BackendError::from_js)
 }

@@ -1,0 +1,176 @@
+/* ============================================================
+   Discrepancy view (Phase 2) — the reconciliation strip under
+   the two panels.  Design tokens only.
+   ============================================================ */
+
+.discrepancy-view {
+  margin: 12px 20px 0;
+  padding: 14px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.discrepancy-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.discrepancy-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.discrepancy-summary {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.pill {
+  background: var(--bg-elevated);
+  color: var(--text-secondary);
+  border-radius: 999px;
+  padding: 3px 10px;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.pill-primary {
+  background: var(--primary-subtle);
+  color: var(--primary-dark);
+  font-weight: 600;
+}
+
+.pill-warn {
+  background: rgba(224, 62, 62, 0.12);
+  color: var(--red);
+  font-weight: 600;
+}
+
+.discrepancy-empty {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-muted);
+  font-size: 13px;
+  padding: 8px 0;
+}
+
+.discrepancy-error {
+  color: var(--red);
+}
+
+.discrepancy-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* ─── Flags ────────────────────────────────────────────────── */
+
+.flag-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.flag-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--red-subtle);
+  border: 1px solid rgba(224, 62, 62, 0.25);
+  border-radius: var(--radius-sm);
+  padding: 8px 12px;
+  font-size: 13px;
+}
+
+.flag-row svg {
+  color: var(--red);
+  flex-shrink: 0;
+}
+
+.flag-text {
+  flex: 1;
+  min-width: 0;
+  color: var(--text-primary);
+}
+
+.flag-meta {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.discrepancy-clean {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--green-dark);
+  background: var(--green-subtle);
+  border-radius: var(--radius-sm);
+  padding: 8px 12px;
+  font-size: 13px;
+}
+
+/* ─── Month table ──────────────────────────────────────────── */
+
+.month-table {
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.month-row {
+  display: grid;
+  grid-template-columns: 64px 1fr 1fr 1fr 1.3fr;
+  gap: 8px;
+  align-items: center;
+  padding: 6px 12px;
+  font-size: 12px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.month-row:last-child {
+  border-bottom: none;
+}
+
+.month-row--head {
+  background: var(--bg-elevated);
+  font-weight: 600;
+  color: var(--text-secondary);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.mt-month {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.mt-num {
+  text-align: right;
+  font-family: var(--font-mono);
+  color: var(--text-primary);
+}
+
+.mt-delta {
+  color: var(--text-secondary);
+}
+
+.mt-delta::first-letter {
+  /* + prefix on positive deltas is already in the text */
+}

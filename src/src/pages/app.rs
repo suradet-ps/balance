@@ -13,6 +13,7 @@ use leptos::task::spawn_local;
 
 use crate::components::app_header::AppHeader;
 use crate::components::connection_settings::ConnectionSettings;
+use crate::components::discrepancy_view::DiscrepancyView;
 use crate::components::drug_search_panel::DrugSearchPanel;
 use crate::components::drug_trend_chart::DrugTrendChart;
 use crate::components::icons::{Icon, IconKind};
@@ -209,6 +210,8 @@ pub fn App() -> impl IntoView {
                   </div>
               </section>
           </main>
+
+          <DiscrepancyView />
 
           <SummaryKpiBar />
 
