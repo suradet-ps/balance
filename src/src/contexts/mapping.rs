@@ -229,6 +229,53 @@ impl MappingContext {
     }
   }
 
+  // ── Linked selection (follow the mapping across panels) ─────────────
+
+  /// When the user selects a HOSxP drug, follow its mapping to the INVS
+  /// side: select the linked `working_code` there, put it in the INVS
+  /// search box, and load its chart.  A no-op for unmapped drugs (the
+  /// other panel keeps whatever it was showing).
+  pub async fn follow_link_to_invs(self, year: i32, icode: &str) {
+    let dash = expect_context::<DashboardContext>();
+    let db = expect_context::<crate::contexts::DbConfigContext>();
+    if !db.invs_connected.get_untracked() {
+      return;
+    }
+    let Ok(status) = commands::mapping_status_by_icode(icode).await else {
+      return;
+    };
+    let Some(link) = status.link.filter(|_| status.status == "mapped") else {
+      return;
+    };
+    let wc = link.working_code;
+    dash.select_invs_drug(wc.clone());
+    dash
+      .invs_search_display
+      .set(format!("{wc} — {}", link.drug_name_invs));
+    let _ = dash.fetch_invs_monthly(year, wc).await;
+  }
+
+  /// Mirror of [`Self::follow_link_to_invs`] for an INVS selection.
+  pub async fn follow_link_to_hosxp(self, year: i32, working_code: &str) {
+    let dash = expect_context::<DashboardContext>();
+    let db = expect_context::<crate::contexts::DbConfigContext>();
+    if !db.hosxp_connected.get_untracked() {
+      return;
+    }
+    let Ok(status) = commands::mapping_status_by_working_code(working_code).await else {
+      return;
+    };
+    let Some(link) = status.link.filter(|_| status.status == "mapped") else {
+      return;
+    };
+    let icode = link.icode;
+    dash.select_hosxp_drug(icode.clone());
+    dash
+      .hosxp_search_display
+      .set(format!("{icode} — {}", link.drug_name_hosxp));
+    let _ = dash.fetch_hosxp_monthly(year, icode).await;
+  }
+
   // ── Detail session (select + suggest + match) ──────────────────────
 
   /// Open the detail session for a row and fetch its scored candidates.

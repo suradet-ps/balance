@@ -52,6 +52,24 @@ pub fn DrugSearchPanel(
   // handlers inside the `view!` closure (which requires `Send + Sync`).
   let search_gen = RwSignal::new(0u64);
 
+  // ── Linked selection sync ───────────────────────────────────────────
+  // When the other panel selects a *mapped* drug, `DashboardContext`
+  // pushes its display text here (see `MappingContext::follow_link_*`):
+  // the input shows the pulled-in drug and any stale dropdown is dropped.
+  let external_display = move || match side {
+    Side::Hosxp => dash.hosxp_search_display.get(),
+    Side::Invs => dash.invs_search_display.get(),
+  };
+  Effect::new(move |_| {
+    let text = external_display();
+    if !text.is_empty() && query.get_untracked() != text {
+      search_gen.update(|g| *g += 1);
+      query.set(text);
+      results.set(Vec::new());
+      show_dropdown.set(false);
+    }
+  });
+
   let run_search = {
     move || {
       let gen = search_gen.get_untracked();

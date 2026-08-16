@@ -112,9 +112,11 @@ pub fn App() -> impl IntoView {
     let dash = dash;
     let mapping = mapping;
     spawn_local(async move {
-      let _ = dash
-        .fetch_hosxp_monthly(dash.selected_year.get_untracked(), code)
-        .await;
+      let year = dash.selected_year.get_untracked();
+      let _ = dash.fetch_hosxp_monthly(year, code.clone()).await;
+      // If the selected HOSxP drug is mapped, pull its INVS counterpart
+      // into the right panel too.
+      mapping.follow_link_to_invs(year, &code).await;
       mapping.refresh_links().await;
     });
   });
@@ -124,9 +126,11 @@ pub fn App() -> impl IntoView {
     let dash = dash;
     let mapping = mapping;
     spawn_local(async move {
-      let _ = dash
-        .fetch_invs_monthly(dash.selected_year.get_untracked(), code)
-        .await;
+      let year = dash.selected_year.get_untracked();
+      let _ = dash.fetch_invs_monthly(year, code.clone()).await;
+      // If the selected INVS drug is mapped, pull its HOSxP counterpart
+      // into the left panel too.
+      mapping.follow_link_to_hosxp(year, &code).await;
       mapping.refresh_links().await;
     });
   });

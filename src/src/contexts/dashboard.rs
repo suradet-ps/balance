@@ -28,6 +28,9 @@ pub struct DashboardContext {
   pub hosxp_years: RwSignal<Vec<i32>>,
   /// Icode of the drug currently selected on the HOSxP side.
   pub hosxp_selected_icode: RwSignal<Option<String>>,
+  /// Text shown in the HOSxP search box when a *mapped* INVS selection
+  /// pulled that drug in (e.g. `"041234 — Amoxicillin"`).
+  pub hosxp_search_display: RwSignal<String>,
   /// Monthly trend of the selected HOSxP drug (or `None`).
   pub hosxp_chart_data: RwSignal<Option<ChartSeries>>,
   /// Whether a HOSxP chart fetch is in flight (shows that side's skeleton).
@@ -36,6 +39,9 @@ pub struct DashboardContext {
   pub invs_years: RwSignal<Vec<i32>>,
   /// Working code of the drug currently selected on the INVS side.
   pub invs_selected_code: RwSignal<Option<String>>,
+  /// Text shown in the INVS search box when a *mapped* HOSxP selection
+  /// pulled that drug in (e.g. `"WA001 — Amoxicillin"`).
+  pub invs_search_display: RwSignal<String>,
   /// Monthly trend of the selected INVS drug (or `None`).
   pub invs_chart_data: RwSignal<Option<ChartSeries>>,
   /// Whether an INVS chart fetch is in flight (shows that side's skeleton).
@@ -56,10 +62,12 @@ impl DashboardContext {
       selected_year: RwSignal::new(current_fiscal_year()),
       hosxp_years: RwSignal::new(Vec::new()),
       hosxp_selected_icode: RwSignal::new(None),
+      hosxp_search_display: RwSignal::new(String::new()),
       hosxp_chart_data: RwSignal::new(None),
       hosxp_loading_chart: RwSignal::new(false),
       invs_years: RwSignal::new(Vec::new()),
       invs_selected_code: RwSignal::new(None),
+      invs_search_display: RwSignal::new(String::new()),
       invs_chart_data: RwSignal::new(None),
       invs_loading_chart: RwSignal::new(false),
       invs_year_summary: RwSignal::new(None),
