@@ -432,6 +432,11 @@ pub async fn mapping_set(
     if !matches!(method.as_str(), "auto" | "manual" | "approved") {
         return Err(format!("match method '{method}' is invalid"));
     }
+    if let Some(s) = score {
+        if !s.is_finite() || !(0.0..=1.0).contains(&s) {
+            return Err(format!("match score '{s}' must be a finite value in [0, 1]"));
+        }
+    }
     let mut conn = store.lock()?;
     repo::upsert(
         &mut conn,
@@ -451,8 +456,11 @@ pub async fn mapping_remove(
     icode: String,
     working_code: String,
 ) -> Result<(), String> {
+    if icode.trim().is_empty() || working_code.trim().is_empty() {
+        return Err("icode และ working_code ต้องไม่ว่าง".to_string());
+    }
     let conn = store.lock()?;
-    repo::remove(&conn, &icode, &working_code)
+    repo::remove(&conn, icode.trim(), working_code.trim())
 }
 
 /// Mark a HOSxP drug as having no INVS equivalent (drops its links).
@@ -462,8 +470,11 @@ pub async fn mapping_mark_no_invs(
     icode: String,
     reason: String,
 ) -> Result<(), String> {
+    if icode.trim().is_empty() {
+        return Err("icode ต้องไม่ว่าง".to_string());
+    }
     let mut conn = store.lock()?;
-    repo::set_no_invs(&mut conn, &icode, reason.trim())
+    repo::set_no_invs(&mut conn, icode.trim(), reason.trim())
 }
 
 /// Clear the "no INVS equivalent" mark.
@@ -472,8 +483,11 @@ pub async fn mapping_unmark_no_invs(
     store: tauri::State<'_, StoreState>,
     icode: String,
 ) -> Result<(), String> {
+    if icode.trim().is_empty() {
+        return Err("icode ต้องไม่ว่าง".to_string());
+    }
     let conn = store.lock()?;
-    repo::unset_no_invs(&conn, &icode)
+    repo::unset_no_invs(&conn, icode.trim())
 }
 
 // ─── Batch auto-match ─────────────────────────────────────────────────────

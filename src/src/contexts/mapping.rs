@@ -50,6 +50,8 @@ pub struct MappingContext {
   pub rows: RwSignal<Vec<MappingRow>>,
   /// Whether a list fetch is in flight.
   pub rows_loading: RwSignal<bool>,
+  /// Bumped on every `search_rows` call; stale responses are dropped.
+  search_gen: RwSignal<u64>,
   /// The list-view search query.
   pub query: RwSignal<String>,
   /// Headline counts (`mapping_stats`).
@@ -85,6 +87,7 @@ impl MappingContext {
     let ctx = Self {
       rows: RwSignal::new(Vec::new()),
       rows_loading: RwSignal::new(false),
+      search_gen: RwSignal::new(0u64),
       query: RwSignal::new(String::new()),
       stats: RwSignal::new(None),
       active_tab: RwSignal::new(MappingTab::List),
@@ -125,19 +128,32 @@ impl MappingContext {
 
   // ── List view ──────────────────────────────────────────────────────
 
-  /// Fetch the list rows for the current query.
+  /// Fetch the list rows for the current query.  A generation counter drops
+  /// responses from superseded searches (Enter pressed twice in a row, or a
+  /// query edited mid-flight), so an older, slower response can never
+  /// overwrite the results of a newer search.
   pub async fn search_rows(self) {
+    self.search_gen.update(|g| *g += 1);
+    let gen = self.search_gen.get_untracked();
     self.rows_loading.set(true);
     let query = self.query.get_untracked();
     match commands::mapping_list_rows(&query, 30).await {
-      Ok(rows) => self.rows.set(rows),
+      Ok(rows) => {
+        if self.search_gen.get_untracked() == gen {
+          self.rows.set(rows);
+        }
+      }
       Err(e) => {
         log_err("mapping listRows", &e.message);
-        self.rows.set(Vec::new());
-        self.show_feedback(e.message, false);
+        if self.search_gen.get_untracked() == gen {
+          self.rows.set(Vec::new());
+          self.show_feedback(e.message, false);
+        }
       }
     }
-    self.rows_loading.set(false);
+    if self.search_gen.get_untracked() == gen {
+      self.rows_loading.set(false);
+    }
   }
 
   /// Fetch the mapping headline counts.
@@ -148,9 +164,13 @@ impl MappingContext {
     }
   }
 
-  /// Open the drawer with a fresh query and load it.
+  /// Open the drawer with a fresh query and load it.  Session state from a
+  /// previous visit (open suggestion, bulk preview, auto-match preview) is
+  /// cleared so a reopened drawer never shows stale candidates.
   pub async fn open(self) {
     self.active_tab.set(MappingTab::List);
+    self.suggestion.set(None);
+    self.bulk_preview.set(None);
     self.auto_preview.set(None);
     self.reload().await;
   }
