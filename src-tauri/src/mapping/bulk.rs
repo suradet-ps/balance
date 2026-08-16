@@ -39,11 +39,14 @@ fn is_header(record: &StringRecord) -> bool {
     // to be eaten: a working_code or drug name that happens to equal one of
     // these words (e.g. a drug literally named "Code") can no longer
     // disguise a data line as a header.
-    let names: Vec<bool> = record.iter().map(|field| {
-        let f = field.trim().to_lowercase();
+    if record.len() < 2 {
+        return false;
+    }
+    let is_name = |f: &str| {
+        let f = f.trim().to_lowercase();
         HEADER_NAMES.contains(&f.as_str())
-    }).collect();
-    names.get(0).copied().unwrap_or(false) && names.get(1).copied().unwrap_or(false)
+    };
+    is_name(&record[0]) && is_name(&record[1])
 }
 
 /// Parse the CSV text into rows.  Returns `(rows, errors)` where each error

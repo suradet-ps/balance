@@ -87,11 +87,8 @@ pub fn upsert(
         params![icode],
     )
     .map_err(sql_err)?;
-    tx.execute(
-        "DELETE FROM drug_mappings WHERE icode = ?1",
-        params![icode],
-    )
-    .map_err(sql_err)?;
+    tx.execute("DELETE FROM drug_mappings WHERE icode = ?1", params![icode])
+        .map_err(sql_err)?;
     tx.execute(
         "INSERT INTO drug_mappings
             (icode, working_code, drug_name_hosxp, drug_name_invs, match_method, match_score)
@@ -297,17 +294,30 @@ mod tests {
         // earlier mapping resurfaces.
         remove(&conn, "A1", "W2").expect("remove");
         assert!(link_by_icode(&conn, "A1").expect("read").is_none());
-        assert!(links_for_icodes(&conn, &["A1"]).expect("batch read").is_empty());
+        assert!(
+            links_for_icodes(&conn, &["A1"])
+                .expect("batch read")
+                .is_empty()
+        );
     }
 
     #[test]
     fn re_confirming_the_same_pair_is_still_an_upsert() {
         let mut conn = repo_db();
         upsert(&mut conn, "A1", "W1", "ยา A", "Drug A", "auto", Some(0.9)).expect("first");
-        upsert(&mut conn, "A1", "W1", "ยา A ใหม่", "Drug A ใหม่", "approved", Some(0.99))
-            .expect("same pair again");
-        let (_, wc, name_h, name_i, method, score) =
-            link_by_icode(&conn, "A1").expect("read").expect("still linked");
+        upsert(
+            &mut conn,
+            "A1",
+            "W1",
+            "ยา A ใหม่",
+            "Drug A ใหม่",
+            "approved",
+            Some(0.99),
+        )
+        .expect("same pair again");
+        let (_, wc, name_h, name_i, method, score) = link_by_icode(&conn, "A1")
+            .expect("read")
+            .expect("still linked");
         assert_eq!(wc, "W1");
         assert_eq!(name_h, "ยา A ใหม่");
         assert_eq!(name_i, "Drug A ใหม่");

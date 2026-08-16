@@ -368,7 +368,10 @@ mod tests {
 
     #[test]
     fn thai_numerals_are_stripped_like_ascii_digits() {
-        assert_eq!(normalize("พาราเซตามอล ๕๐๐ มก."), normalize("พาราเซตามอล 500 มก."));
+        assert_eq!(
+            normalize("พาราเซตามอล ๕๐๐ มก."),
+            normalize("พาราเซตามอล 500 มก.")
+        );
         assert_eq!(normalize("ยา ๑๒๓"), normalize("ยา 123"));
         assert_eq!(normalize("พาราเซตามอล 500 มก."), "พาราเซตามอล");
     }

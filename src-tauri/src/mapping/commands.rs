@@ -142,9 +142,7 @@ fn link_to_wire(
 /// unlike `\`, whose meaning depends on the MySQL `NO_BACKSLASH_ESCAPES`
 /// mode), so it must be escaped first.
 fn escape_like(s: &str) -> String {
-    s.replace('~', "~~")
-        .replace('%', "~%")
-        .replace('_', "~_")
+    s.replace('~', "~~").replace('%', "~%").replace('_', "~_")
 }
 
 /// A short, loose term for the INVS candidate query: the first word, joined
@@ -432,10 +430,11 @@ pub async fn mapping_set(
     if !matches!(method.as_str(), "auto" | "manual" | "approved") {
         return Err(format!("match method '{method}' is invalid"));
     }
-    if let Some(s) = score {
-        if !s.is_finite() || !(0.0..=1.0).contains(&s) {
-            return Err(format!("match score '{s}' must be a finite value in [0, 1]"));
-        }
+    if score.is_some_and(|s| !s.is_finite() || !(0.0..=1.0).contains(&s)) {
+        return Err(format!(
+            "match score '{:?}' must be a finite value in [0, 1]",
+            score
+        ));
     }
     let mut conn = store.lock()?;
     repo::upsert(
