@@ -66,6 +66,14 @@ pub fn MappingPanel(
     }
   });
 
+  // Per-row UI state (reason prompt) belongs to one drug: drop it whenever
+  // the selection moves on (incl. auto-advance after a match).
+  Effect::new(move |_| {
+    let _ = mapping.selected_icode.get();
+    no_invs_prompt.set(None);
+    no_invs_reason.set(String::new());
+  });
+
   let close = move || on_close.run(());
 
   let on_overlay = move |ev: web_sys::MouseEvent| {
@@ -378,40 +386,56 @@ fn MappingListPane() -> impl IntoView {
 }
 
 /// One HOSxP row in the list; clicking selects it for the detail pane.
+///
+/// Leptos 0.8 keyed `<For>` calls the children closure only *once per key*
+/// (tachys `keyed` re-runs `view_fn` only for added items), so a captured
+/// `row` prop would go stale the moment the list refreshes after a match.
+/// The row content is therefore read reactively from `mapping.rows` (found
+/// by its icode — the key), with the initially captured row only as a
+/// fallback for the instant before the first list arrives.
 #[component]
 fn MappingRowView(row: MappingRow, on_select: Callback<MappingRow>) -> impl IntoView {
   let mapping = expect_context::<MappingContext>();
-  let row_state = StoredValue::new(row);
+  let initial = StoredValue::new(row);
+  let live_row = move || {
+    let icode = initial.get_value().icode.clone();
+    mapping
+      .rows
+      .get()
+      .into_iter()
+      .find(|r| r.icode == icode)
+      .unwrap_or_else(|| initial.get_value().clone())
+  };
   let is_selected =
-    move || mapping.selected_icode.get().as_deref() == Some(row_state.get_value().icode.as_str());
+    move || mapping.selected_icode.get().as_deref() == Some(initial.get_value().icode.as_str());
 
   view! {
       <button
           class="mapping-row"
           class:row-selected=is_selected
-          on:click=move |_ev: web_sys::MouseEvent| on_select.run(row_state.get_value().clone())
+          on:click=move |_ev: web_sys::MouseEvent| on_select.run(live_row())
       >
-          <span class="drug-code font-mono">{move || row_state.get_value().icode.clone()}</span>
-          <span class="drug-name">{move || row_state.get_value().drug_name.clone()}</span>
-          <Show when=move || row_state.get_value().status == "mapped">
+          <span class="drug-code font-mono">{move || live_row().icode.clone()}</span>
+          <span class="drug-name">{move || live_row().drug_name.clone()}</span>
+          <Show when=move || live_row().status == "mapped">
               <span class="badge badge-connected">
                   <Icon kind=IconKind::Link2 size=12 />
                   {move || {
-                      let wc = row_state.get_value().working_code.clone().unwrap_or_default();
+                      let wc = live_row().working_code.clone().unwrap_or_default();
                       format!("INVS: {wc}")
                   }}
               </span>
           </Show>
-          <Show when=move || row_state.get_value().status == "no_invs">
+          <Show when=move || live_row().status == "no_invs">
               <span
                   class="badge badge-muted"
-                  title=move || row_state.get_value().no_invs_reason.clone().unwrap_or_default()
+                  title=move || live_row().no_invs_reason.clone().unwrap_or_default()
               >
                   <Icon kind=IconKind::XCircle size=12 />
                   "ไม่มีใน INVS"
               </span>
           </Show>
-          <Show when=move || row_state.get_value().status == "unmapped">
+          <Show when=move || live_row().status == "unmapped">
               <span class="badge badge-unmapped">"ยังไม่แมป"</span>
           </Show>
       </button>
@@ -432,6 +456,15 @@ fn MappingDetailPane(
 ) -> impl IntoView {
   let mapping = expect_context::<MappingContext>();
   let dash = expect_context::<DashboardContext>();
+
+  // Manual-search results belong to one drug: clear them whenever the
+  // selection moves on (incl. auto-advance after a match).
+  Effect::new(move |_| {
+    let _ = mapping.selected_icode.get();
+    manual_query.set(String::new());
+    manual_results.set(Vec::new());
+    manual_loading.set(false);
+  });
 
   let run_manual_search = move |_| {
     let q = manual_query.get_untracked();
@@ -518,6 +551,13 @@ fn MappingDetailPane(
 }
 
 /// The content of the detail pane for one selected drug.
+///
+/// The `session` prop is captured only as the initial snapshot: the pane's
+/// `Show` fallback is created once per Some-period, and a `Some → Some`
+/// change (auto-advance to the next drug) never re-runs it.  Every piece of
+/// displayed data is therefore read reactively from `mapping.detail` (the
+/// live session) and `mapping.rows` (the refreshed list), so the pane
+/// follows selection changes without being re-created.
 #[allow(clippy::too_many_arguments)]
 #[component]
 fn DetailContent(
@@ -533,25 +573,27 @@ fn DetailContent(
   on_confirm_no_invs: Callback<()>,
 ) -> impl IntoView {
   let mapping = expect_context::<MappingContext>();
-  let session_row = StoredValue::new(session.row.clone());
+  let initial = StoredValue::new(session.row.clone());
 
-  // Live row state: keep the session row in sync with the refreshed list
-  // (after a change the reload updates `rows`, and the detail row must too).
-  let row = move || {
-    let icode = session_row.get_value().icode.clone();
+  // The current drug: whatever the live detail session points at, resolved
+  // against the refreshed list (the session snapshot goes stale after a
+  // change; the list row carries the fresh status/working code).
+  let current = move || {
+    let Some(snap) = mapping.detail.get().map(|d| d.row.clone()) else {
+      return initial.get_value().clone();
+    };
     mapping
       .rows
       .get()
       .into_iter()
-      .find(|r| r.icode == icode)
-      .unwrap_or_else(|| session_row.get_value().clone())
+      .find(|r| r.icode == snap.icode)
+      .unwrap_or(snap)
   };
-  let status = move || row().status;
-  let is_prompt =
-    move || no_invs_prompt.get().as_deref() == Some(session_row.get_value().icode.as_str());
+  let status = move || current().status;
+  let is_prompt = move || no_invs_prompt.get().as_deref() == Some(current().icode.as_str());
 
   let remove = move |_ev: web_sys::MouseEvent| {
-    let row = row();
+    let row = current();
     let mapping = mapping;
     spawn_local(async move {
       mapping.remove_link(&row).await;
@@ -559,7 +601,7 @@ fn DetailContent(
   };
 
   let unmark = move |_ev: web_sys::MouseEvent| {
-    let row = row();
+    let row = current();
     let mapping = mapping;
     spawn_local(async move {
       mapping.unmark_no_invs(&row).await;
@@ -568,19 +610,19 @@ fn DetailContent(
 
   let start_no_invs = move |_ev: web_sys::MouseEvent| {
     no_invs_reason.set(String::new());
-    no_invs_prompt.set(Some(session_row.get_value().icode.clone()));
+    no_invs_prompt.set(Some(current().icode.clone()));
   };
 
   view! {
       <div class="mapping-detail">
           <div class="mapping-detail-head">
-              <span class="drug-code font-mono">{move || session_row.get_value().icode.clone()}</span>
-              <span class="drug-name">{move || session_row.get_value().drug_name.clone()}</span>
+              <span class="drug-code font-mono">{move || current().icode.clone()}</span>
+              <span class="drug-name">{move || current().drug_name.clone()}</span>
               <Show when=move || status() == "mapped">
                   <span class="badge badge-connected">
                       <Icon kind=IconKind::Link2 size=12 />
                       {move || {
-                          let wc = row().working_code.clone().unwrap_or_default();
+                          let wc = current().working_code.clone().unwrap_or_default();
                           format!("แมปแล้ว ↔ INVS: {wc}")
                       }}
                   </span>
@@ -588,7 +630,7 @@ fn DetailContent(
               <Show when=move || status() == "no_invs">
                   <span
                       class="badge badge-muted"
-                      title=move || row().no_invs_reason.clone().unwrap_or_default()
+                      title=move || current().no_invs_reason.clone().unwrap_or_default()
                   >
                       <Icon kind=IconKind::XCircle size=12 />
                       "ไม่มีใน INVS"
@@ -604,10 +646,10 @@ fn DetailContent(
               <div class="detail-card detail-current">
                   <div class="detail-card-title">"ลิงก์ปัจจุบัน"</div>
                   <div class="detail-current-row">
-                      <span class="drug-code font-mono">{move || session_row.get_value().icode.clone()}</span>
+                      <span class="drug-code font-mono">{move || current().icode.clone()}</span>
                       <Icon kind=IconKind::Link2 size=14 />
                       <span class="drug-code font-mono">
-                          {move || row().working_code.clone().unwrap_or_default()}
+                          {move || current().working_code.clone().unwrap_or_default()}
                       </span>
                       <button class="btn btn-ghost detail-btn" on:click=remove>
                           "ยกเลิกการแมป"
@@ -777,7 +819,7 @@ fn DetailContent(
                   <div class="detail-current-row">
                       <span class="detail-no-invs-reason">
                           {move || {
-                              let reason = row().no_invs_reason.clone().unwrap_or_default();
+                              let reason = current().no_invs_reason.clone().unwrap_or_default();
                               if reason.is_empty() {
                                   "ไม่ระบุเหตุผล".to_owned()
                               } else {
@@ -957,25 +999,23 @@ fn BulkPreviewSummary() -> impl IntoView {
                           mapping
                               .bulk_preview
                               .get()
-                              .map_or(Vec::new(), |p| {
-                                  p.conflicts
-                                      .iter()
-                                      .enumerate()
-                                      .map(|(i, c)| (i, c.clone()))
-                                      .collect()
-                              })
+                              .map_or(Vec::new(), |p| p.conflicts.clone())
                       }
-                      key=|(i, _)| *i
+                      // Line numbers are unique within one import, and a
+                      // re-preview must re-key rows instead of reusing stale
+                      // DOM (Leptos 0.8 keyed <For> never re-runs children
+                      // for existing keys).
+                      key=|c| c.line
                       let:c
                   >
                       <div class="bulk-conflict-row">
-                          <span class="drug-code font-mono">{c.1.icode.clone()}</span>
+                          <span class="drug-code font-mono">{c.icode.clone()}</span>
                           "→ "
-                          <span class="drug-code font-mono">{c.1.working_code.clone()}</span>
+                          <span class="drug-code font-mono">{c.working_code.clone()}</span>
                           " (เดิม: "
-                          <span class="drug-code font-mono">{c.1.existing.clone()}</span>
+                          <span class="drug-code font-mono">{c.existing.clone()}</span>
                           ") — บรรทัด "
-                          {c.1.line}
+                          {c.line}
                       </div>
                   </For>
               </div>
@@ -988,14 +1028,12 @@ fn BulkPreviewSummary() -> impl IntoView {
                           mapping
                               .bulk_preview
                               .get()
-                              .map_or(Vec::new(), |p| {
-                                  p.errors.iter().enumerate().map(|(i, e)| (i, e.clone())).collect()
-                              })
+                              .map_or(Vec::new(), |p| p.errors.clone())
                       }
-                      key=|(i, _)| *i
+                      key=|e| e.clone()
                       let:e
                   >
-                      <div class="bulk-error-row">{e.1}</div>
+                      <div class="bulk-error-row">{e}</div>
                   </For>
               </div>
           </Show>
