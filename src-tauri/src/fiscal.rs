@@ -32,6 +32,24 @@ pub fn reorder_calendar_to_fiscal(values: Vec<f64>) -> Vec<f64> {
     out
 }
 
+/// The fiscal-year window as `YYYYMMDD` integers (INVS `RECEIVE_DATE` shape):
+/// FY `fy` = 1 Oct (`fy`−1) … 30 Sep `fy`.
+///
+/// This is the single definition of the boundary: a record on 30 Sep `fy`
+/// belongs to FY `fy`; a record on 1 Oct `fy` belongs to FY `fy`+1.
+#[must_use]
+pub fn fiscal_year_range(fy: i32) -> (i32, i32) {
+    ((fy - 1) * 10_000 + 1001, fy * 10_000 + 930)
+}
+
+/// The same window as `'YYYY-MM-DD'` strings with an **exclusive** upper
+/// bound (`[start, end)`), for MySQL `DATE` columns: `end` = 1 Oct of the
+/// label year, so 30 Sep is included and 1 Oct belongs to the next FY.
+#[must_use]
+pub fn fiscal_mysql_window(fy: i32) -> (String, String) {
+    (format!("{:04}-10-01", fy - 1), format!("{:04}-10-01", fy))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -78,5 +96,37 @@ mod tests {
         let fiscal = reorder_calendar_to_fiscal(calendar);
         let sum: f64 = fiscal.iter().sum();
         assert_eq!(sum, 78.0);
+    }
+
+    #[test]
+    fn fiscal_year_range_covers_oct_to_sep() {
+        // FY 2026 = 1 Oct 2025 … 30 Sep 2026 (standard Thai fiscal year).
+        let (start, end) = fiscal_year_range(2026);
+        assert_eq!(start, 20251001);
+        assert_eq!(end, 20260930);
+    }
+
+    #[test]
+    fn fiscal_boundary_months_belong_to_the_right_year() {
+        // 30 Sep 2025 → FY 2025; 1 Oct 2025 → FY 2026.
+        let (start25, end25) = fiscal_year_range(2025);
+        assert_eq!((start25, end25), (20241001, 20250930));
+        assert!(
+            20250930 <= end25 && 20250930 >= start25,
+            "30 Sep is in FY2025"
+        );
+        let (start26, _) = fiscal_year_range(2026);
+        assert!(20251001 >= start26, "1 Oct starts FY2026");
+        assert!(!(20250930 >= start26), "…and is NOT in FY2026");
+    }
+
+    #[test]
+    fn mysql_window_is_inclusive_start_exclusive_end() {
+        let (start, end) = fiscal_mysql_window(2026);
+        assert_eq!(start, "2025-10-01");
+        assert_eq!(
+            end, "2026-10-01",
+            "exclusive: 30 Sep 2026 is the last included day"
+        );
     }
 }

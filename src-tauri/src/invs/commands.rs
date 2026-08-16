@@ -46,13 +46,7 @@ pub struct YearSummary {
 
 // ─── Fiscal Year Helpers ─────────────────────────────────────────────────
 
-fn fiscal_year_range(fy: u16) -> (i32, i32) {
-    let start = (fy as i32 - 1) * 10_000 + 1001;
-    let end = fy as i32 * 10_000 + 930;
-    (start, end)
-}
-
-use crate::fiscal::cal_to_fiscal_idx;
+use crate::fiscal::{cal_to_fiscal_idx, fiscal_year_range};
 
 // ─── Row Helpers ─────────────────────────────────────────────────────────
 
@@ -111,7 +105,7 @@ pub(crate) async fn fetch_monthly_value(
         .as_mut()
         .ok_or_else(|| "ยังไม่ได้เชื่อมต่อฐานข้อมูล INVS".to_string())?;
 
-    let (start_date, end_date) = fiscal_year_range(year);
+    let (start_date, end_date) = fiscal_year_range(year as i32);
 
     let query = "
         SELECT
@@ -195,7 +189,7 @@ pub async fn invs_get_top_drugs_by_value(
         .as_mut()
         .ok_or_else(|| "ยังไม่ได้เชื่อมต่อฐานข้อมูล INVS".to_string())?;
 
-    let (start_date, end_date) = fiscal_year_range(year);
+    let (start_date, end_date) = fiscal_year_range(year as i32);
     let limit_i32 = limit as i32;
 
     let query = "
@@ -379,7 +373,7 @@ pub async fn invs_get_year_summary(
         .as_mut()
         .ok_or_else(|| "ยังไม่ได้เชื่อมต่อฐานข้อมูล INVS".to_string())?;
 
-    let (start_date, end_date) = fiscal_year_range(year);
+    let (start_date, end_date) = fiscal_year_range(year as i32);
 
     let query = "
         SELECT

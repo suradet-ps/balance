@@ -86,19 +86,30 @@ pub async fn hosxp_connect(config: HosxpDbConfig) -> Result<(), String> {
     init_pool(config).await
 }
 
-/// Fetch distinct years present in opitemrece.vstdate, newest first.
+/// Fetch distinct **fiscal years** present in opitemrece.vstdate, newest
+/// first (FY N = 1 Oct of N−1 … 30 Sep of N — same definition as the INVS
+/// side, so the dropdown is a single consistent fiscal axis).
 #[tauri::command]
 pub async fn hosxp_get_available_years() -> Result<Vec<i32>, String> {
     with_pool(|pool| {
         Box::pin(async move {
-            let rows =
-                sqlx::query("SELECT DISTINCT YEAR(vstdate) AS yr FROM opitemrece ORDER BY yr DESC")
-                    .fetch_all(pool)
-                    .await?;
+            let rows = sqlx::query(
+                r#"
+                SELECT DISTINCT
+                    CASE
+                        WHEN MONTH(vstdate) >= 10 THEN YEAR(vstdate) + 1
+                        ELSE YEAR(vstdate)
+                    END AS fiscal_year
+                FROM opitemrece
+                ORDER BY fiscal_year DESC
+                "#,
+            )
+            .fetch_all(pool)
+            .await?;
 
             let years: Vec<i32> = rows
                 .iter()
-                .map(|r| col_u32(r, "yr") as i32)
+                .map(|r| col_u32(r, "fiscal_year") as i32)
                 .filter(|&y| y > 0)
                 .collect();
 
@@ -108,11 +119,12 @@ pub async fn hosxp_get_available_years() -> Result<Vec<i32>, String> {
     .await
 }
 
-/// Fetch top-N drugs by total dispensed quantity in a year.
+/// Fetch top-N drugs by total dispensed quantity in a **fiscal year**.
 #[tauri::command]
 pub async fn hosxp_get_top_drugs(year: i32, limit: u8) -> Result<Vec<DrugSummary>, String> {
     with_pool(move |pool| {
         Box::pin(async move {
+            let (start_date, end_date) = crate::fiscal::fiscal_mysql_window(year);
             // Step 1: totals only
             let total_rows = sqlx::query(
                 r#"
@@ -122,13 +134,14 @@ pub async fn hosxp_get_top_drugs(year: i32, limit: u8) -> Result<Vec<DrugSummary
                     CAST(SUM(o.qty) AS DOUBLE)        AS total_qty
                 FROM opitemrece o
                 LEFT JOIN drugitems d ON d.icode = o.icode
-                WHERE YEAR(o.vstdate) = ?
+                WHERE o.vstdate >= ? AND o.vstdate < ?
                 GROUP BY o.icode, d.name
                 ORDER BY total_qty DESC
                 LIMIT ?
                 "#,
             )
-            .bind(year)
+            .bind(&start_date)
+            .bind(&end_date)
             .bind(limit as i64)
             .fetch_all(pool)
             .await?;
@@ -148,14 +161,14 @@ pub async fn hosxp_get_top_drugs(year: i32, limit: u8) -> Result<Vec<DrugSummary
                     MONTH(o.vstdate)             AS month,
                     CAST(SUM(o.qty) AS DOUBLE)   AS qty
                 FROM opitemrece o
-                WHERE YEAR(o.vstdate) = ?
+                WHERE o.vstdate >= ? AND o.vstdate < ?
                   AND o.icode IN ({})
                 GROUP BY o.icode, MONTH(o.vstdate)
                 "#,
                 placeholders
             );
 
-            let mut q = sqlx::query(&monthly_sql).bind(year);
+            let mut q = sqlx::query(&monthly_sql).bind(&start_date).bind(&end_date);
             for ic in &icodes {
                 q = q.bind(ic.as_str());
             }
@@ -209,7 +222,8 @@ pub async fn hosxp_get_top_drugs(year: i32, limit: u8) -> Result<Vec<DrugSummary
     .await
 }
 
-/// Get monthly dispensing quantities for a specific drug (fiscal order).
+/// Get monthly dispensing quantities for a specific drug (**fiscal order**,
+/// fiscal-year window).
 #[tauri::command]
 pub async fn hosxp_get_drug_monthly_qty(
     year: i32,
@@ -226,6 +240,7 @@ pub(crate) async fn fetch_monthly_qty(
     year: i32,
     icode: &str,
 ) -> Result<Vec<DrugMonthlyData>, sqlx::Error> {
+    let (start_date, end_date) = crate::fiscal::fiscal_mysql_window(year);
     let rows = sqlx::query(
         r#"
         SELECT STRAIGHT_JOIN
@@ -235,13 +250,14 @@ pub(crate) async fn fetch_monthly_qty(
             CAST(SUM(o.qty) AS DOUBLE)   AS total_qty
         FROM opitemrece o
         LEFT JOIN drugitems d ON d.icode = o.icode
-        WHERE YEAR(o.vstdate) = ?
+        WHERE o.vstdate >= ? AND o.vstdate < ?
           AND o.icode = ?
         GROUP BY o.icode, d.name, MONTH(o.vstdate)
         ORDER BY month
         "#,
     )
-    .bind(year)
+    .bind(&start_date)
+    .bind(&end_date)
     .bind(icode)
     .fetch_all(pool)
     .await?;
