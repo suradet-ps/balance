@@ -138,14 +138,18 @@ fn link_to_wire(
 }
 
 /// Escape LIKE wildcards so the search term is matched literally.
+/// `~` is the escape character (usable on both MySQL and SQL Server —
+/// unlike `\`, whose meaning depends on the MySQL `NO_BACKSLASH_ESCAPES`
+/// mode), so it must be escaped first.
 fn escape_like(s: &str) -> String {
-    s.replace('\\', "\\\\")
-        .replace('%', "\\%")
-        .replace('_', "\\_")
+    s.replace('~', "~~")
+        .replace('%', "~%")
+        .replace('_', "~_")
 }
 
 /// A short, loose term for the INVS candidate query: the first word, joined
 /// with the second when the first is very short, capped at 16 chars.
+/// Empty for a blank input — callers must not query with `LIKE '%%'`.
 fn suggest_search_term(name: &str) -> String {
     let mut words = name.split_whitespace();
     let first = words.next().unwrap_or("");
@@ -229,7 +233,7 @@ pub async fn mapping_list_rows(
                 r#"
                 SELECT icode, COALESCE(name, icode) AS drug_name
                 FROM drugitems
-                WHERE icode LIKE ? OR name LIKE ?
+                WHERE icode LIKE ? ESCAPE '~' OR name LIKE ? ESCAPE '~'
                 ORDER BY name
                 LIMIT ?
                 "#,
@@ -321,6 +325,12 @@ async fn fetch_and_score_candidates(
 ) -> Result<Vec<MappingCandidate>, String> {
     let limit_i32 = limit.clamp(1, 20) as i32;
     let search_term = suggest_search_term(drug_name);
+    if search_term.is_empty() {
+        // No term → nothing comparable; return no candidates instead of
+        // `LIKE '%%'` matching the whole catalog and scoring everything 0.
+        return Ok(Vec::new());
+    }
+    let escaped = escape_like(&search_term);
 
     let mut guard = invs.0.lock().await;
     let client = guard
@@ -334,9 +344,13 @@ async fn fetch_and_score_candidates(
         FROM DRUG_GN g
         WHERE
             g.WORKING_CODE = @P2
-            OR g.WORKING_CODE LIKE @P3 + '%'
-            OR g.DRUG_NAME LIKE '%' + @P4 + '%'
-        ORDER BY g.DRUG_NAME
+            OR g.WORKING_CODE LIKE @P3 + '%' ESCAPE '~'
+            OR g.DRUG_NAME LIKE '%' + @P4 + '%' ESCAPE '~'
+        ORDER BY
+            CASE WHEN g.WORKING_CODE = @P2 THEN 0
+                 WHEN g.WORKING_CODE LIKE @P3 + '%' ESCAPE '~' THEN 1
+                 ELSE 2 END,
+            g.DRUG_NAME
     ";
     let mut stream = client
         .query(
@@ -344,8 +358,8 @@ async fn fetch_and_score_candidates(
             &[
                 &limit_i32,
                 &search_term.as_str(),
-                &search_term.as_str(),
-                &search_term.as_str(),
+                &escaped.as_str(),
+                &escaped.as_str(),
             ],
         )
         .await
@@ -364,12 +378,29 @@ async fn fetch_and_score_candidates(
     drop(stream);
     drop(guard); // scoring is pure CPU — release the INVS client first
 
-    let mut scored: Vec<MappingCandidate> = candidates
+    // DRUG_GN can hold several name rows per WORKING_CODE; a code must
+    // appear once, scored by its best matching name.
+    let mut best_by_code: std::collections::HashMap<String, (String, f64)> =
+        std::collections::HashMap::new();
+    for (working_code, name) in candidates {
+        let score = normalizer::similarity(drug_name, &name);
+        best_by_code
+            .entry(working_code)
+            .and_modify(|(n, s)| {
+                if score > *s {
+                    *n = name.clone();
+                    *s = score;
+                }
+            })
+            .or_insert((name, score));
+    }
+
+    let mut scored: Vec<MappingCandidate> = best_by_code
         .into_iter()
-        .map(|(working_code, name)| MappingCandidate {
+        .map(|(working_code, (drug_name, score))| MappingCandidate {
             working_code,
-            drug_name: name.clone(),
-            score: normalizer::similarity(drug_name, &name),
+            drug_name,
+            score,
         })
         .collect();
     scored.sort_by(|a, b| {
@@ -572,4 +603,27 @@ pub async fn mapping_bulk_import(
         }
     }
     Ok(result)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{escape_like, suggest_search_term};
+
+    #[test]
+    fn escape_like_escapes_wildcards_and_the_escape_char() {
+        assert_eq!(escape_like("amox"), "amox");
+        assert_eq!(escape_like("50%"), "50~%");
+        assert_eq!(escape_like("a_b"), "a~_b");
+        assert_eq!(escape_like("100~"), "100~~");
+        assert_eq!(escape_like("%_~%"), "~%~_~~~%");
+    }
+
+    #[test]
+    fn suggest_term_shortens_and_guards_empty() {
+        assert_eq!(suggest_search_term("Amoxicillin 500 mg"), "Amoxicillin");
+        assert_eq!(suggest_search_term("Ab 500 mg"), "Ab 500");
+        assert_eq!(suggest_search_term("a very long name here"), "a very");
+        assert!(suggest_search_term("").is_empty());
+        assert!(suggest_search_term("   ").is_empty());
+    }
 }
