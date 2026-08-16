@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 // ─── HOSxP (MySQL) types ──────────────────────────────────────────────
 
 /// 12-month breakdown from `hosxp_get_drug_monthly_qty`
-/// (`monthly_qty` index 0 = January, calendar order).
+/// (`monthly_qty` index 0 = ต.ค. — fiscal order, same axis as the INVS panel).
 #[derive(Clone, Debug, Deserialize)]
 pub struct HosxpDrugMonthly {
   pub icode: String,
@@ -289,8 +289,8 @@ impl ChartSeries {
     }
   }
 
-  /// The 12 monthly values, i.e. what the chart plots
-  /// (calendar order for HOSxP, fiscal for INVS; INVS plots `QTY_ORDER`).
+  /// The 12 monthly values, i.e. what the chart plots (fiscal order
+  /// ต.ค.–ก.ย. on both sides; INVS plots `QTY_ORDER`).
   #[must_use]
   pub fn values(&self) -> &[f64] {
     match self {
@@ -318,11 +318,11 @@ impl ChartSeries {
     }
   }
 
-  /// The x-axis month labels (calendar Thai months for HOSxP, fiscal for INVS).
+  /// The x-axis month labels — the same fiscal labels on both panels.
   #[must_use]
   pub fn months(&self) -> &'static [&'static str; 12] {
     match self {
-      Self::Hosxp(_) => &THAI_MONTHS_SHORT,
+      Self::Hosxp(_) => &FISCAL_MONTHS_SHORT,
       Self::Invs(_) => &FISCAL_MONTHS_SHORT,
     }
   }
@@ -477,7 +477,7 @@ mod tests {
     assert_eq!(hosxp.name(), "พารา");
     assert_eq!(hosxp.total(), 42.0);
     assert!(hosxp.aux_values().is_empty());
-    assert_eq!(hosxp.months()[0], "ม.ค.");
+    assert_eq!(hosxp.months()[0], "ต.ค.");
 
     let invs = ChartSeries::Invs(InvsDrugMonthlyValue {
       working_code: "A1".to_owned(),

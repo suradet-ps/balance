@@ -11,7 +11,8 @@ use std::collections::HashMap;
 pub struct DrugMonthlyData {
     pub icode: String,
     pub drug_name: String,
-    /// 12-element vec; index 0 = January.
+    /// 12-element vec in **Thai fiscal order** (index 0 = ต.ค. … 11 = ก.ย.),
+    /// aligned with the INVS side so both panels share one axis.
     pub monthly_qty: Vec<f64>,
     pub total_qty: f64,
 }
@@ -259,6 +260,13 @@ pub async fn hosxp_get_drug_monthly_qty(
             }
 
             let mut result: Vec<DrugMonthlyData> = map.into_values().collect();
+            for data in &mut result {
+                // Calendar buckets (Jan..Dec) → Thai fiscal buckets (ต.ค..ก.ย.)
+                // so both panels plot the same 12 fiscal months side by side.
+                data.monthly_qty = crate::fiscal::reorder_calendar_to_fiscal(
+                    std::mem::take(&mut data.monthly_qty),
+                );
+            }
             result.sort_by(|a, b| {
                 b.total_qty
                     .partial_cmp(&a.total_qty)

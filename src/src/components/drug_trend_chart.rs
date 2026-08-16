@@ -21,7 +21,7 @@ use wasm_bindgen::{JsCast, JsValue};
 use web_sys::{CanvasRenderingContext2d, HtmlElement, MouseEvent};
 
 use crate::components::icons::{Icon, IconKind};
-use crate::models::{format_baht, format_qty, ChartSeries, Side, THAI_MONTHS_SHORT};
+use crate::models::{format_baht, format_qty, ChartSeries, Side, FISCAL_MONTHS_SHORT};
 
 /// Canvas plot layout of the last redraw; used to map mouse events to months.
 #[derive(Clone, Copy)]
@@ -298,7 +298,7 @@ fn draw_chart(
 
   let (vals, months, _total) = match series {
     Some(s) => (s.values().to_vec(), s.months(), s.total().max(0.0)),
-    None => (vec![0.0; 12], &THAI_MONTHS_SHORT, 0.0),
+    None => (vec![0.0; 12], &FISCAL_MONTHS_SHORT, 0.0),
   };
 
   // 3-month trailing moving average (same window as the original).
