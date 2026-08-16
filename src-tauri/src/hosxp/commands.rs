@@ -215,10 +215,8 @@ pub async fn hosxp_get_drug_monthly_qty(
     year: i32,
     icode: String,
 ) -> Result<Vec<DrugMonthlyData>, String> {
-    with_pool(move |pool| {
-        Box::pin(async move { fetch_monthly_qty(pool, year, &icode).await })
-    })
-    .await
+    with_pool(move |pool| Box::pin(async move { fetch_monthly_qty(pool, year, &icode).await }))
+        .await
 }
 
 /// The monthly dispensing query behind [`hosxp_get_drug_monthly_qty`],

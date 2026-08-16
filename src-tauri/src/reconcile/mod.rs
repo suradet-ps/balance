@@ -94,6 +94,13 @@ pub struct ReconcileInput {
 /// The full reconciliation result for one mapped drug and one fiscal year.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Reconciliation {
+    /// HOSxP dispensed quantity per fiscal month (echoed input — makes the
+    /// report self-contained for the table view).
+    pub dispensed_qty: Vec<f64>,
+    /// INVS purchased quantity per fiscal month (echoed input).
+    pub purchased_qty: Vec<f64>,
+    /// INVS purchase value (THB) per fiscal month (echoed input).
+    pub purchased_value: Vec<f64>,
     /// Yearly unit price = Σ value ÷ Σ qty (`None` when nothing dispensed).
     pub unit_price_year: Option<f64>,
     /// Monthly unit price (`None` in months with no dispensing — displayed
@@ -113,11 +120,7 @@ pub struct Reconciliation {
 /// dispensed — a zero-quantity month renders "no dispensing data".
 #[must_use]
 pub fn unit_price(value: f64, qty: f64) -> Option<f64> {
-    if qty > 0.0 {
-        Some(value / qty)
-    } else {
-        None
-    }
+    if qty > 0.0 { Some(value / qty) } else { None }
 }
 
 /// Coefficient of variation (σ/μ) of a series; `None` for empty or zero-mean
@@ -239,7 +242,9 @@ pub fn reconcile(input: &ReconcileInput, thresholds: Thresholds) -> Reconciliati
     let median_price = median_of(unit_price_month.iter().flatten().copied());
     if let Some(median) = median_price {
         for m in 0..12 {
-            let Some(price) = unit_price_month[m] else { continue };
+            let Some(price) = unit_price_month[m] else {
+                continue;
+            };
             let spike = if median > 0.0 {
                 price > thresholds.unit_price_spike_factor * median
             } else {
@@ -279,6 +284,9 @@ pub fn reconcile(input: &ReconcileInput, thresholds: Thresholds) -> Reconciliati
     flags.sort_by_key(|f| (f.kind as u8, f.month.unwrap_or(usize::MAX)));
 
     Reconciliation {
+        dispensed_qty: dispensed_qty.clone(),
+        purchased_qty: purchased_qty.clone(),
+        purchased_value: purchased_value.clone(),
         unit_price_year,
         unit_price_month,
         monthly_deltas,
@@ -320,7 +328,10 @@ mod tests {
         let dispensed = [10.0; 12];
         let purchased_qty = [15.0; 12];
         let purchased_value = [100.0; 12];
-        let r = reconcile(&input(dispensed, purchased_qty, purchased_value), Thresholds::default());
+        let r = reconcile(
+            &input(dispensed, purchased_qty, purchased_value),
+            Thresholds::default(),
+        );
         assert!(r.flags.is_empty(), "{:?}", r.flags);
         assert_eq!(r.unit_price_year, Some(10.0));
         assert_eq!(r.monthly_deltas, vec![5.0; 12]);
@@ -330,10 +341,7 @@ mod tests {
 
     #[test]
     fn zero_use_full_purchase_is_flagged() {
-        let r = reconcile(
-            &input(ZERO, [10.0; 12], [100.0; 12]),
-            Thresholds::default(),
-        );
+        let r = reconcile(&input(ZERO, [10.0; 12], [100.0; 12]), Thresholds::default());
         assert!(
             r.flags
                 .iter()
@@ -349,7 +357,10 @@ mod tests {
                 .count(),
             12
         );
-        assert_eq!(r.unit_price_year, None, "nothing dispensed → no yearly price");
+        assert_eq!(
+            r.unit_price_year, None,
+            "nothing dispensed → no yearly price"
+        );
     }
 
     #[test]
@@ -365,11 +376,9 @@ mod tests {
             r.flags
         );
         assert!(
-            r.flags
-                .iter()
-                .any(|f| f.kind == FlagKind::OneSidedMonth
-                    && f.one_sided == Some(OneSidedKind::OnlyDispensed)
-                    && f.month == Some(0)),
+            r.flags.iter().any(|f| f.kind == FlagKind::OneSidedMonth
+                && f.one_sided == Some(OneSidedKind::OnlyDispensed)
+                && f.month == Some(0)),
             "{:?}",
             r.flags
         );
@@ -382,10 +391,7 @@ mod tests {
         let mut value = [100.0; 12];
         dispensed[5] = 1.0;
         value[5] = 200.0;
-        let r = reconcile(
-            &input(dispensed, [10.0; 12], value),
-            Thresholds::default(),
-        );
+        let r = reconcile(&input(dispensed, [10.0; 12], value), Thresholds::default());
         let spike: Vec<&DiscrepancyFlag> = r
             .flags
             .iter()
@@ -403,10 +409,7 @@ mod tests {
         let value: [f64; 12] = [
             90.0, 95.0, 100.0, 105.0, 110.0, 100.0, 90.0, 95.0, 105.0, 110.0, 95.0, 105.0,
         ];
-        let r = reconcile(
-            &input([10.0; 12], [10.0; 12], value),
-            Thresholds::default(),
-        );
+        let r = reconcile(&input([10.0; 12], [10.0; 12], value), Thresholds::default());
         assert!(
             !r.flags.iter().any(|f| f.kind == FlagKind::UnitPriceSpike),
             "{:?}",

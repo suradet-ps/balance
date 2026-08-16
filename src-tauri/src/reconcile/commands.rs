@@ -6,8 +6,8 @@
 //! reconciliation.  The command is a thin adapter — all rules live in the
 //! pure module.
 
-use crate::hosxp::db::with_pool;
 use crate::hosxp::commands::fetch_monthly_qty;
+use crate::hosxp::db::with_pool;
 use crate::invs::commands::fetch_monthly_value;
 use crate::invs::db::InvsDbState;
 use crate::mapping::repo;
