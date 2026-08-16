@@ -209,74 +209,81 @@ pub async fn hosxp_get_top_drugs(year: i32, limit: u8) -> Result<Vec<DrugSummary
     .await
 }
 
-/// Get monthly dispensing quantities for a specific drug.
+/// Get monthly dispensing quantities for a specific drug (fiscal order).
 #[tauri::command]
 pub async fn hosxp_get_drug_monthly_qty(
     year: i32,
     icode: String,
 ) -> Result<Vec<DrugMonthlyData>, String> {
     with_pool(move |pool| {
-        Box::pin(async move {
-            let rows = sqlx::query(
-                r#"
-                SELECT STRAIGHT_JOIN
-                    o.icode                      AS icode,
-                    COALESCE(d.name, o.icode)    AS drug_name,
-                    MONTH(o.vstdate)             AS month,
-                    CAST(SUM(o.qty) AS DOUBLE)   AS total_qty
-                FROM opitemrece o
-                LEFT JOIN drugitems d ON d.icode = o.icode
-                WHERE YEAR(o.vstdate) = ?
-                  AND o.icode = ?
-                GROUP BY o.icode, d.name, MONTH(o.vstdate)
-                ORDER BY month
-                "#,
-            )
-            .bind(year)
-            .bind(icode.as_str())
-            .fetch_all(pool)
-            .await?;
-
-            let mut map: HashMap<String, DrugMonthlyData> = HashMap::new();
-            for row in &rows {
-                let ic = col_string(row, "icode");
-                let dn = {
-                    let v = col_string(row, "drug_name");
-                    if v.is_empty() { ic.clone() } else { v }
-                };
-                let mo = col_u32(row, "month");
-                let qty = col_f64(row, "total_qty");
-
-                let entry = map.entry(ic.clone()).or_insert_with(|| DrugMonthlyData {
-                    icode: ic.clone(),
-                    drug_name: dn,
-                    monthly_qty: vec![0.0; 12],
-                    total_qty: 0.0,
-                });
-                if (1..=12).contains(&mo) {
-                    entry.monthly_qty[(mo - 1) as usize] = qty;
-                    entry.total_qty += qty;
-                }
-            }
-
-            let mut result: Vec<DrugMonthlyData> = map.into_values().collect();
-            for data in &mut result {
-                // Calendar buckets (Jan..Dec) → Thai fiscal buckets (ต.ค..ก.ย.)
-                // so both panels plot the same 12 fiscal months side by side.
-                data.monthly_qty = crate::fiscal::reorder_calendar_to_fiscal(
-                    std::mem::take(&mut data.monthly_qty),
-                );
-            }
-            result.sort_by(|a, b| {
-                b.total_qty
-                    .partial_cmp(&a.total_qty)
-                    .unwrap_or(std::cmp::Ordering::Equal)
-            });
-
-            Ok::<Vec<DrugMonthlyData>, sqlx::Error>(result)
-        })
+        Box::pin(async move { fetch_monthly_qty(pool, year, &icode).await })
     })
     .await
+}
+
+/// The monthly dispensing query behind [`hosxp_get_drug_monthly_qty`],
+/// shared with the reconciliation command (which needs the same series).
+pub(crate) async fn fetch_monthly_qty(
+    pool: &sqlx::MySqlPool,
+    year: i32,
+    icode: &str,
+) -> Result<Vec<DrugMonthlyData>, sqlx::Error> {
+    let rows = sqlx::query(
+        r#"
+        SELECT STRAIGHT_JOIN
+            o.icode                      AS icode,
+            COALESCE(d.name, o.icode)    AS drug_name,
+            MONTH(o.vstdate)             AS month,
+            CAST(SUM(o.qty) AS DOUBLE)   AS total_qty
+        FROM opitemrece o
+        LEFT JOIN drugitems d ON d.icode = o.icode
+        WHERE YEAR(o.vstdate) = ?
+          AND o.icode = ?
+        GROUP BY o.icode, d.name, MONTH(o.vstdate)
+        ORDER BY month
+        "#,
+    )
+    .bind(year)
+    .bind(icode)
+    .fetch_all(pool)
+    .await?;
+
+    let mut map: HashMap<String, DrugMonthlyData> = HashMap::new();
+    for row in &rows {
+        let ic = col_string(row, "icode");
+        let dn = {
+            let v = col_string(row, "drug_name");
+            if v.is_empty() { ic.clone() } else { v }
+        };
+        let mo = col_u32(row, "month");
+        let qty = col_f64(row, "total_qty");
+
+        let entry = map.entry(ic.clone()).or_insert_with(|| DrugMonthlyData {
+            icode: ic.clone(),
+            drug_name: dn,
+            monthly_qty: vec![0.0; 12],
+            total_qty: 0.0,
+        });
+        if (1..=12).contains(&mo) {
+            entry.monthly_qty[(mo - 1) as usize] = qty;
+            entry.total_qty += qty;
+        }
+    }
+
+    let mut result: Vec<DrugMonthlyData> = map.into_values().collect();
+    for data in &mut result {
+        // Calendar buckets (Jan..Dec) → Thai fiscal buckets (ต.ค..ก.ย.)
+        // so both panels plot the same 12 fiscal months side by side.
+        data.monthly_qty =
+            crate::fiscal::reorder_calendar_to_fiscal(std::mem::take(&mut data.monthly_qty));
+    }
+    result.sort_by(|a, b| {
+        b.total_qty
+            .partial_cmp(&a.total_qty)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
+
+    Ok(result)
 }
 
 /// Search drugitems by icode prefix or name substring.

@@ -63,6 +63,8 @@ pub fn run() {
             mapping::commands::mapping_unmark_no_invs,
             mapping::commands::mapping_auto_match,
             mapping::commands::mapping_bulk_import,
+            // Reconciliation (Phase 2)
+            reconcile::commands::reconcile_drug,
         ])
         .run(tauri::generate_context!())
         .expect("invariant: tauri context is generated at compile time and is always valid");

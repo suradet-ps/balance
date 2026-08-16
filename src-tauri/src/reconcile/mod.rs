@@ -11,11 +11,13 @@
 //! quantity) yields `None` unit prices — never `∞`, never a number that
 //! looks comparable when it is not.
 
-use serde::Serialize;
+pub mod commands;
+
+use serde::{Deserialize, Serialize};
 
 /// One kind of discrepancy flag, serialised as a stable kebab-case string
 /// so the frontend can render Thai copy without re-implementing the rules.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum FlagKind {
     /// Bought all year (value > 0) but never dispensed anything.
@@ -32,7 +34,7 @@ pub enum FlagKind {
 }
 
 /// Which side of a [`FlagKind::OneSidedMonth`] flag has data.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum OneSidedKind {
     /// Dispensed (HOSxP) in this month, no purchase (INVS) at all.
@@ -44,7 +46,7 @@ pub enum OneSidedKind {
 /// A single discrepancy flag, carrying the two numbers that produced it so
 /// the pharmacist can verify against the source systems.  `month` is the
 /// fiscal-month index (0 = ต.ค., `None` = whole fiscal year).
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct DiscrepancyFlag {
     pub kind: FlagKind,
     pub month: Option<usize>,
@@ -90,7 +92,7 @@ pub struct ReconcileInput {
 }
 
 /// The full reconciliation result for one mapped drug and one fiscal year.
-#[derive(Debug, Clone, PartialEq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Reconciliation {
     /// Yearly unit price = Σ value ÷ Σ qty (`None` when nothing dispensed).
     pub unit_price_year: Option<f64>,
@@ -142,7 +144,7 @@ fn median_of(values: impl Iterator<Item = f64>) -> Option<f64> {
     }
     vals.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
     let mid = vals.len() / 2;
-    if vals.len() % 2 == 0 {
+    if vals.len().is_multiple_of(2) {
         Some((vals[mid - 1] + vals[mid]) / 2.0)
     } else {
         Some(vals[mid])
@@ -261,17 +263,17 @@ pub fn reconcile(input: &ReconcileInput, thresholds: Thresholds) -> Reconciliati
     // ── Seasonal flip ──────────────────────────────────────────────────
     let peak_dispensed = peak_month(dispensed_qty);
     let peak_purchased = peak_month(purchased_qty);
-    if let (Some(pd), Some(pp)) = (peak_dispensed, peak_purchased) {
-        if pd != pp {
-            flags.push(DiscrepancyFlag {
-                kind: FlagKind::SeasonalFlip,
-                month: Some(pd),
-                one_sided: None,
-                dispensed_qty: dispensed_qty[pd],
-                purchased_qty: purchased_qty[pd],
-                purchased_value: purchased_value[pd],
-            });
-        }
+    if let (Some(pd), Some(pp)) = (peak_dispensed, peak_purchased)
+        && pd != pp
+    {
+        flags.push(DiscrepancyFlag {
+            kind: FlagKind::SeasonalFlip,
+            month: Some(pd),
+            one_sided: None,
+            dispensed_qty: dispensed_qty[pd],
+            purchased_qty: purchased_qty[pd],
+            purchased_value: purchased_value[pd],
+        });
     }
 
     flags.sort_by_key(|f| (f.kind as u8, f.month.unwrap_or(usize::MAX)));

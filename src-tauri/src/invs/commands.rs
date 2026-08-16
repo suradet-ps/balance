@@ -96,6 +96,16 @@ pub async fn invs_get_drug_monthly_value(
     working_code: String,
     state: tauri::State<'_, InvsDbState>,
 ) -> Result<DrugMonthlyValue, String> {
+    fetch_monthly_value(state.inner(), year, &working_code).await
+}
+
+/// The monthly purchase query behind [`invs_get_drug_monthly_value`], shared
+/// with the reconciliation command (which needs the same arrays).
+pub(crate) async fn fetch_monthly_value(
+    state: &InvsDbState,
+    year: u16,
+    working_code: &str,
+) -> Result<DrugMonthlyValue, String> {
     let mut guard = state.0.lock().await;
     let client = guard
         .as_mut()
@@ -125,7 +135,7 @@ pub async fn invs_get_drug_monthly_value(
     ";
 
     let mut stream = client
-        .query(query, &[&working_code.as_str(), &start_date, &end_date])
+        .query(query, &[&working_code, &start_date, &end_date])
         .await
         .map_err(|e| format!("Query error: {e}"))?;
 
@@ -163,7 +173,7 @@ pub async fn invs_get_drug_monthly_value(
         .unwrap_or(1);
 
     Ok(DrugMonthlyValue {
-        working_code,
+        working_code: working_code.to_owned(),
         drug_name,
         monthly_qty,
         total_qty,
