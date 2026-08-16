@@ -102,13 +102,29 @@ pub fn App() -> impl IntoView {
   // Boot: load persisted settings (auto-connects), then let the connect
   // watcher above trigger the first refresh.  Mapping stats are loaded too
   // so the KPI bar's mapping card has numbers without opening the view.
+  // The health-poll loop starts here as well.
   let root_ref = NodeRef::<Div>::new();
   root_ref.on_load(move |_root| {
     spawn_local(async move {
       db.init_from_storage().await;
       let _ = mapping.load_stats().await;
+      db.start_health_polling(15_000);
     });
   });
+
+  let reconnect_hosxp = move |_| {
+    let db = db;
+    spawn_local(async move {
+      let _ = db.connect_hosxp().await;
+    });
+  };
+
+  let reconnect_invs = move |_| {
+    let db = db;
+    spawn_local(async move {
+      let _ = db.connect_invs().await;
+    });
+  };
 
   let on_hosxp_select = Callback::new(move |code: String| {
     dash.select_hosxp_drug(code.clone());
@@ -155,9 +171,33 @@ pub fn App() -> impl IntoView {
               </div>
           </Show>
 
+          <Show when=move || db.any_lost().get()>
+              <div class="lost-banner">
+                  <Icon kind=IconKind::AlertTriangle size=14 />
+                  <span>
+                      "การเชื่อมต่อฐานข้อมูลหลุด — ข้อมูลที่แสดงเป็นชุดล่าสุด ระบบจะพยายามเชื่อมต่อใหม่โดยอัตโนมัติ"
+                  </span>
+                  <span class="lost-actions">
+                      <Show when=move || db.hosxp_lost.get()>
+                          <button class="btn btn-ghost lost-btn" on:click=reconnect_hosxp>
+                              "เชื่อมต่อ MySQL ใหม่"
+                          </button>
+                      </Show>
+                      <Show when=move || db.invs_lost.get()>
+                          <button class="btn btn-ghost lost-btn" on:click=reconnect_invs>
+                              "เชื่อมต่อ MSSQL ใหม่"
+                          </button>
+                      </Show>
+                  </span>
+              </div>
+          </Show>
+
           <Show
               when=move || {
-                  !any_connected.get() && !db.hosxp_connecting.get() && !db.invs_connecting.get()
+                  !any_connected.get()
+                      && !db.hosxp_connecting.get()
+                      && !db.invs_connecting.get()
+                      && !db.any_lost().get()
               }
           >
               <div class="no-conn-banner">

@@ -6,6 +6,7 @@
 //! this module never touches `invoke` directly.
 
 use leptos::prelude::*;
+use leptos::task::spawn_local;
 
 use crate::models::{HosxpDbConfig, InvsDbConfig};
 use crate::services::commands;
@@ -32,6 +33,8 @@ pub struct DbConfigContext {
   pub hosxp_connecting: RwSignal<bool>,
   /// Last HOSxP connect error (displayed in the drawer).
   pub hosxp_error: RwSignal<Option<String>>,
+  /// HOSxP was connected at least once and a health ping just failed.
+  pub hosxp_lost: RwSignal<bool>,
   /// INVS (SQL Server) connection settings (editable in the drawer).
   pub invs_config: RwSignal<InvsDbConfig>,
   /// Whether an INVS connection is currently established.
@@ -40,12 +43,23 @@ pub struct DbConfigContext {
   pub invs_connecting: RwSignal<bool>,
   /// Last INVS connect error (displayed in the drawer).
   pub invs_error: RwSignal<Option<String>>,
+  /// INVS was connected at least once and a health ping just failed.
+  pub invs_lost: RwSignal<bool>,
   /// Active tab of the settings drawer.
   pub active_tab: RwSignal<SettingsTab>,
   /// Whether a save operation is in flight (disables the save buttons).
   pub saving: RwSignal<bool>,
   /// Save feedback message (`บันทึกสำเร็จ` or the backend error), auto-cleared.
   pub save_message: RwSignal<Option<String>>,
+  /// Whether the health-poll loop is running (guards against double-start).
+  polling: RwSignal<bool>,
+  /// Whether a poll tick is still in flight (a slow INVS reconnect must not
+  /// overlap the next tick).
+  tick_running: RwSignal<bool>,
+  /// Whether each side has ever been connected (only those sides are pinged).
+  ever_hosxp: RwSignal<bool>,
+  /// See [`Self::ever_hosxp`].
+  ever_invs: RwSignal<bool>,
 }
 
 impl DbConfigContext {
@@ -57,13 +71,19 @@ impl DbConfigContext {
       hosxp_connected: RwSignal::new(false),
       hosxp_connecting: RwSignal::new(false),
       hosxp_error: RwSignal::new(None),
+      hosxp_lost: RwSignal::new(false),
       invs_config: RwSignal::new(InvsDbConfig::default()),
       invs_connected: RwSignal::new(false),
       invs_connecting: RwSignal::new(false),
       invs_error: RwSignal::new(None),
+      invs_lost: RwSignal::new(false),
       active_tab: RwSignal::new(SettingsTab::Hosxp),
       saving: RwSignal::new(false),
       save_message: RwSignal::new(None),
+      polling: RwSignal::new(false),
+      tick_running: RwSignal::new(false),
+      ever_hosxp: RwSignal::new(false),
+      ever_invs: RwSignal::new(false),
     };
     provide_context(ctx);
     ctx
@@ -75,6 +95,13 @@ impl DbConfigContext {
     Memo::new(move |_| self.hosxp_connected.get() || self.invs_connected.get())
   }
 
+  /// Whether a previously-good connection has just failed a health ping
+  /// (drives the "connection lost" banner).
+  #[must_use]
+  pub fn any_lost(self) -> Memo<bool> {
+    Memo::new(move |_| self.hosxp_lost.get() || self.invs_lost.get())
+  }
+
   /// Test the HOSxP connection with the current settings.
   ///
   /// Returns `true` on success and stores the outcome in the signals.
@@ -84,6 +111,8 @@ impl DbConfigContext {
     let cfg = self.hosxp_config.get_untracked();
     let ok = match commands::hosxp_connect(&cfg).await {
       Ok(()) => {
+        self.ever_hosxp.set(true);
+        self.hosxp_lost.set(false);
         self.hosxp_connected.set(true);
         true
       }
@@ -106,6 +135,8 @@ impl DbConfigContext {
     let cfg = self.invs_config.get_untracked();
     let ok = match commands::invs_connect(&cfg).await {
       Ok(()) => {
+        self.ever_invs.set(true);
+        self.invs_lost.set(false);
         self.invs_connected.set(true);
         true
       }
@@ -117,6 +148,88 @@ impl DbConfigContext {
     };
     self.invs_connecting.set(false);
     ok
+  }
+
+  // ── Connection health ──────────────────────────────────────────────
+
+  /// Start the background health-poll loop: pings every connected side
+  /// every `interval_ms`; a failed ping flips the side to "lost" (badge +
+  /// banner), a successful one restores it.  The MySQL pool heals itself
+  /// (test_before_acquire), so the HOSxP side recovers by itself; the INVS
+  /// side is a single TCP client that cannot heal, so a failed ping also
+  /// retries `connect_invs` with the saved config.  Idempotent.
+  pub fn start_health_polling(self, interval_ms: i32) {
+    if self.polling.get_untracked() {
+      return;
+    }
+    self.polling.set(true);
+    self.poll_tick(interval_ms);
+  }
+
+  fn poll_tick(self, interval_ms: i32) {
+    set_timeout_ms(
+      move || {
+        spawn_local(async move {
+          if !self.tick_running.get_untracked() {
+            self.tick_running.set(true);
+            self.poll_once().await;
+            self.tick_running.set(false);
+          }
+          self.poll_tick(interval_ms);
+        });
+      },
+      interval_ms,
+    );
+  }
+
+  async fn poll_once(self) {
+    if self.ever_hosxp.get_untracked() {
+      match commands::hosxp_ping().await {
+        Ok(()) => {
+          if self.hosxp_lost.get_untracked() {
+            // The pool healed itself — connection is back.
+            self.hosxp_lost.set(false);
+            self.hosxp_connected.set(true);
+          }
+        }
+        Err(e) => {
+          if !self.hosxp_lost.get_untracked() {
+            web_sys::console::error_1(&wasm_bindgen::JsValue::from_str(&format!(
+              "HOSxP connection lost: {}",
+              e.message
+            )));
+          }
+          self.hosxp_lost.set(true);
+          self.hosxp_connected.set(false);
+        }
+      }
+    }
+
+    if self.ever_invs.get_untracked() {
+      match commands::invs_ping().await {
+        Ok(()) => {
+          if self.invs_lost.get_untracked() {
+            self.invs_lost.set(false);
+            self.invs_connected.set(true);
+          }
+        }
+        Err(e) => {
+          if !self.invs_lost.get_untracked() {
+            web_sys::console::error_1(&wasm_bindgen::JsValue::from_str(&format!(
+              "INVS connection lost: {}",
+              e.message
+            )));
+          }
+          self.invs_lost.set(true);
+          self.invs_connected.set(false);
+          // The single tiberius client is dead; reconnect from saved config.
+          let cfg = self.invs_config.get_untracked();
+          if !cfg.user.trim().is_empty() && !self.invs_connecting.get_untracked() {
+            let _ = self.connect_invs().await;
+          }
+        }
+      }
+    }
   }
 
   /// Persist both configs via the encrypted Tauri settings, then show the
