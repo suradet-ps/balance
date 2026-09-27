@@ -106,8 +106,19 @@
 }
 
 .year-selector select:focus {
-  outline: none;
   border-color: var(--primary);
+}
+
+.year-selector select:focus-visible {
+  border-color: var(--primary-light);
+  outline: 2px solid var(--primary-light);
+  outline-offset: 2px;
+}
+
+/* Keyboard focus on the dark header needs a light ring (the default
+   violet is too dark against --near-black). */
+.app-header :focus-visible {
+  outline-color: var(--primary-light);
 }
 
 /* Badges (header-only variants — scoped to the dark header) */
