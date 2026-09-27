@@ -9,7 +9,11 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
-  max-height: 320px;
+  /* Fixed height: the strip's content arrives in stages (loading → summary
+     → flags → table) and a content-sized pane would resize the charts
+     above it at every stage.  Shorter windows get a proportionally
+     smaller pane. */
+  height: clamp(240px, 38vh, 320px);
   overflow-y: auto;
 }
 

@@ -61,8 +61,8 @@ pub fn DrugTrendChart(
     }
   });
 
-  // First draw + the window-resize listener once the canvas is mounted.
-  canvas_ref.on_load(move |_canvas| {
+  // First draw + resize tracking once the canvas is mounted.
+  canvas_ref.on_load(move |canvas| {
     if let Some(win) = web_sys::window() {
       let size = size;
       let on_resize = Closure::wrap(Box::new(move || {
@@ -72,6 +72,20 @@ pub fn DrugTrendChart(
       let _ = win.add_event_listener_with_callback("resize", on_resize.as_ref().unchecked_ref());
       on_resize.forget();
     }
+    // The card is also resized by *layout* (the mapping chip, the comparison
+    // strip, banners) without a window resize event — observe the canvas box
+    // itself so the bitmap is redrawn at its real size instead of being
+    // stretched until the next data change.
+    let size = size;
+    let on_box_resize = Closure::wrap(Box::new(move || {
+      size.set(());
+    }) as Box<dyn FnMut()>);
+    if let Ok(observer) = web_sys::ResizeObserver::new(on_box_resize.as_ref().unchecked_ref()) {
+      observer.observe(canvas.unchecked_ref());
+      // Intentionally leaked: the observer lives for the whole app.
+      std::mem::forget(observer);
+    }
+    on_box_resize.forget();
     size.set(());
   });
 
@@ -84,57 +98,66 @@ pub fn DrugTrendChart(
         return;
       };
       if x < layout.left || x > layout.right || y < layout.top || y > layout.bottom {
-        hover.set(None);
+        if hover.get_untracked().is_some() {
+          hover.set(None);
+        }
         return;
       }
       let idx = (((x - layout.left) / layout.band) as usize).min(11);
-      hover.set(Some(idx));
+      // Only redraw / rebuild the tooltip when the hovered month changes;
+      // moves within one band just reposition the tooltip.
+      let month_changed = hover.get_untracked() != Some(idx);
+      if month_changed {
+        hover.set(Some(idx));
+      }
 
-      let Some(series) = data.get_untracked() else {
-        return;
-      };
       let Some(tip) = tooltip_ref.get_untracked() else {
         return;
       };
-      let val = series.values().get(idx).copied().unwrap_or(0.0);
-      let total = series.total().max(1.0);
-      let pct = format!("{:.1}", val / total * 100.0);
-      let bar_color = css_var(
-        if side == Side::Hosxp {
-          "--chart-hosxp"
-        } else {
-          "--chart-invs"
-        },
-        if side == Side::Hosxp {
-          "#7c3aed"
-        } else {
-          "#d97706"
-        },
-      );
-      let tooltip_bg = css_var(
-        if side == Side::Hosxp {
-          "--chart-hosxp-tooltip-bg"
-        } else {
-          "--chart-invs-tooltip-bg"
-        },
-        "#2e1065",
-      );
-      let mut html = format!(
-        "<span class=\"chart-tooltip-label\">{}</span><br/>จำนวน: <span class=\"chart-tooltip-value\" style=\"color:{bar_color}\">{}</span> ({pct}%)",
-        series.months()[idx],
-        format_qty(val)
-      );
-      let aux = series.aux_values().get(idx).copied().unwrap_or(0.0);
-      if aux > 0.0 {
-        html.push_str(&format!(
-          "<br/>(มูลค่า: <span style=\"color:{bar_color}\">{}</span>)",
-          format_baht(aux, 0)
-        ));
-      }
-      tip.set_inner_html(&html);
       let style = HtmlElement::style(&tip);
-      let _ = style.set_property("background", &tooltip_bg);
-      let _ = style.set_property("border-color", &bar_color);
+      if month_changed {
+        let Some(series) = data.get_untracked() else {
+          return;
+        };
+        let val = series.values().get(idx).copied().unwrap_or(0.0);
+        let total = series.total().max(1.0);
+        let pct = format!("{:.1}", val / total * 100.0);
+        let bar_color = css_var(
+          if side == Side::Hosxp {
+            "--chart-hosxp"
+          } else {
+            "--chart-invs"
+          },
+          if side == Side::Hosxp {
+            "#7c3aed"
+          } else {
+            "#d97706"
+          },
+        );
+        let tooltip_bg = css_var(
+          if side == Side::Hosxp {
+            "--chart-hosxp-tooltip-bg"
+          } else {
+            "--chart-invs-tooltip-bg"
+          },
+          "#2e1065",
+        );
+        let mut html = format!(
+          "<span class=\"chart-tooltip-label\">{}</span><br/>จำนวน: <span class=\"chart-tooltip-value\" style=\"color:{bar_color}\">{}</span> ({pct}%)",
+          series.months()[idx],
+          format_qty(val)
+        );
+        let aux = series.aux_values().get(idx).copied().unwrap_or(0.0);
+        if aux > 0.0 {
+          html.push_str(&format!(
+            "<br/>(มูลค่า: <span style=\"color:{bar_color}\">{}</span>)",
+            format_baht(aux, 0)
+          ));
+        }
+        tip.set_inner_html(&html);
+        let _ = style.set_property("background", &tooltip_bg);
+        let _ = style.set_property("border-color", &bar_color);
+      }
       let _ = style.set_property("display", "block");
       let css_w = canvas_ref
         .get_untracked()
@@ -219,11 +242,14 @@ pub fn DrugTrendChart(
                   on:mouseleave=on_mouseleave
               ></canvas>
 
-              <Show when=move || loading.get()>
-                  <div class="chart-loading" style="position:absolute;inset:0;background:var(--bg-base)">
-                      <div class="skeleton" style="width:100%;height:100%;border-radius:8px"></div>
-                  </div>
-              </Show>
+              <div
+                  class="chart-loading"
+                  class:is-visible=move || loading.get()
+                  aria-hidden="true"
+                  style="position:absolute;inset:0;background:var(--bg-base)"
+              >
+                  <div class="skeleton" style="width:100%;height:100%;border-radius:8px"></div>
+              </div>
 
               <Show when=move || { !loading.get() && data.get().is_none() }>
                   <div class="chart-empty" style="position:absolute;inset:0">

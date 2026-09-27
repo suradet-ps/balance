@@ -71,9 +71,19 @@
   min-height: 0;
 }
 
+/* Loading skeleton — permanently mounted so it can fade in *and out*
+   (mount/unmount would flash the chart under it). */
 .chart-loading {
   flex: 1;
   padding: 12px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--transition-med);
+}
+
+.chart-loading.is-visible {
+  opacity: 1;
+  pointer-events: auto;
 }
 
 .chart-empty {
