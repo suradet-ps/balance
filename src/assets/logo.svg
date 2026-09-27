@@ -49,28 +49,28 @@
   <!-- Center Line Divider -->
   <line x1="256" y1="96" x2="256" y2="416" stroke="#94A3B8" stroke-width="4" stroke-dasharray="8 8" stroke-linecap="round" opacity="0.6" />
 
-  <!-- LEFT SIDE: Yellow Spheres (3x5 Grid) -->
+  <!-- LEFT SIDE: Purple Spheres (3x5 Grid) -->
   <g filter="url(#shadow3D)">
     <!-- Row 1 -->
-    <circle cx="92" cy="120" r="18" fill="url(#yellowSphere)" />
-    <circle cx="142" cy="120" r="18" fill="url(#yellowSphere)" />
-    <circle cx="192" cy="120" r="18" fill="url(#yellowSphere)" />
+    <circle cx="92" cy="120" r="18" fill="url(#purpleSphere)" />
+    <circle cx="142" cy="120" r="18" fill="url(#purpleSphere)" />
+    <circle cx="192" cy="120" r="18" fill="url(#purpleSphere)" />
     <!-- Row 2 -->
-    <circle cx="92" cy="180" r="18" fill="url(#yellowSphere)" />
-    <circle cx="142" cy="180" r="18" fill="url(#yellowSphere)" />
-    <circle cx="192" cy="180" r="18" fill="url(#yellowSphere)" />
+    <circle cx="92" cy="180" r="18" fill="url(#purpleSphere)" />
+    <circle cx="142" cy="180" r="18" fill="url(#purpleSphere)" />
+    <circle cx="192" cy="180" r="18" fill="url(#purpleSphere)" />
     <!-- Row 3 -->
-    <circle cx="92" cy="240" r="18" fill="url(#yellowSphere)" />
-    <circle cx="142" cy="240" r="18" fill="url(#yellowSphere)" />
-    <circle cx="192" cy="240" r="18" fill="url(#yellowSphere)" />
+    <circle cx="92" cy="240" r="18" fill="url(#purpleSphere)" />
+    <circle cx="142" cy="240" r="18" fill="url(#purpleSphere)" />
+    <circle cx="192" cy="240" r="18" fill="url(#purpleSphere)" />
     <!-- Row 4 -->
-    <circle cx="92" cy="300" r="18" fill="url(#yellowSphere)" />
-    <circle cx="142" cy="300" r="18" fill="url(#yellowSphere)" />
-    <circle cx="192" cy="300" r="18" fill="url(#yellowSphere)" />
+    <circle cx="92" cy="300" r="18" fill="url(#purpleSphere)" />
+    <circle cx="142" cy="300" r="18" fill="url(#purpleSphere)" />
+    <circle cx="192" cy="300" r="18" fill="url(#purpleSphere)" />
     <!-- Row 5 -->
-    <circle cx="92" cy="360" r="18" fill="url(#yellowSphere)" />
-    <circle cx="142" cy="360" r="18" fill="url(#yellowSphere)" />
-    <circle cx="192" cy="360" r="18" fill="url(#yellowSphere)" />
+    <circle cx="92" cy="360" r="18" fill="url(#purpleSphere)" />
+    <circle cx="142" cy="360" r="18" fill="url(#purpleSphere)" />
+    <circle cx="192" cy="360" r="18" fill="url(#purpleSphere)" />
 
     <!-- Highlights -->
     <g fill="#FFFFFF" opacity="0.75">
@@ -82,28 +82,28 @@
     </g>
   </g>
 
-  <!-- RIGHT SIDE: Purple Spheres (3x5 Grid) -->
+  <!-- RIGHT SIDE: Gold/Yellow Spheres (3x5 Grid) -->
   <g filter="url(#shadow3D)">
     <!-- Row 1 -->
-    <circle cx="320" cy="120" r="18" fill="url(#purpleSphere)" />
-    <circle cx="370" cy="120" r="18" fill="url(#purpleSphere)" />
-    <circle cx="420" cy="120" r="18" fill="url(#purpleSphere)" />
+    <circle cx="320" cy="120" r="18" fill="url(#yellowSphere)" />
+    <circle cx="370" cy="120" r="18" fill="url(#yellowSphere)" />
+    <circle cx="420" cy="120" r="18" fill="url(#yellowSphere)" />
     <!-- Row 2 -->
-    <circle cx="320" cy="180" r="18" fill="url(#purpleSphere)" />
-    <circle cx="370" cy="180" r="18" fill="url(#purpleSphere)" />
-    <circle cx="420" cy="180" r="18" fill="url(#purpleSphere)" />
+    <circle cx="320" cy="180" r="18" fill="url(#yellowSphere)" />
+    <circle cx="370" cy="180" r="18" fill="url(#yellowSphere)" />
+    <circle cx="420" cy="180" r="18" fill="url(#yellowSphere)" />
     <!-- Row 3 -->
-    <circle cx="320" cy="240" r="18" fill="url(#purpleSphere)" />
-    <circle cx="370" cy="240" r="18" fill="url(#purpleSphere)" />
-    <circle cx="420" cy="240" r="18" fill="url(#purpleSphere)" />
+    <circle cx="320" cy="240" r="18" fill="url(#yellowSphere)" />
+    <circle cx="370" cy="240" r="18" fill="url(#yellowSphere)" />
+    <circle cx="420" cy="240" r="18" fill="url(#yellowSphere)" />
     <!-- Row 4 -->
-    <circle cx="320" cy="300" r="18" fill="url(#purpleSphere)" />
-    <circle cx="370" cy="300" r="18" fill="url(#purpleSphere)" />
-    <circle cx="420" cy="300" r="18" fill="url(#purpleSphere)" />
+    <circle cx="320" cy="300" r="18" fill="url(#yellowSphere)" />
+    <circle cx="370" cy="300" r="18" fill="url(#yellowSphere)" />
+    <circle cx="420" cy="300" r="18" fill="url(#yellowSphere)" />
     <!-- Row 5 -->
-    <circle cx="320" cy="360" r="18" fill="url(#purpleSphere)" />
-    <circle cx="370" cy="360" r="18" fill="url(#purpleSphere)" />
-    <circle cx="420" cy="360" r="18" fill="url(#purpleSphere)" />
+    <circle cx="320" cy="360" r="18" fill="url(#yellowSphere)" />
+    <circle cx="370" cy="360" r="18" fill="url(#yellowSphere)" />
+    <circle cx="420" cy="360" r="18" fill="url(#yellowSphere)" />
 
     <!-- Highlights -->
     <g fill="#FFFFFF" opacity="0.75">
