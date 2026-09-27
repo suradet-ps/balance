@@ -128,10 +128,45 @@ pub fn MappingPanel(
     mapping.bulk_preview.set(None);
   };
 
+  // Move keyboard focus into the view on open; Escape backs out one level
+  // (topmost modal → the view itself).
+  let view_ref = NodeRef::<leptos::html::Div>::new();
+  view_ref.on_load(move |el| {
+    let _ = el.focus();
+  });
+  let auto_modal_ref = NodeRef::<leptos::html::Div>::new();
+  auto_modal_ref.on_load(move |el| {
+    let _ = el.focus();
+  });
+  let csv_modal_ref = NodeRef::<leptos::html::Div>::new();
+  csv_modal_ref.on_load(move |el| {
+    let _ = el.focus();
+  });
+  let on_keydown = move |ev: web_sys::KeyboardEvent| {
+    if ev.key() != "Escape" {
+      return;
+    }
+    ev.prevent_default();
+    if auto_open.get_untracked() {
+      close_auto(web_sys::MouseEvent::new("keydown").expect("event"));
+    } else if csv_open.get_untracked() {
+      close_csv(web_sys::MouseEvent::new("keydown").expect("event"));
+    } else {
+      close();
+    }
+  };
+
   view! {
       <Show when=move || visible.get()>
-          <div class="mapping-overlay" on:click=on_overlay>
-              <div class="mapping-view">
+          <div
+              class="mapping-overlay"
+              role="dialog"
+              aria-modal="true"
+              aria-label="แมปยา HOSxP กับ INVS"
+              on:click=on_overlay
+              on:keydown=on_keydown
+          >
+              <div class="mapping-view" tabindex="-1" node_ref=view_ref>
                   <div class="mapping-header">
                       <div class="mapping-title">
                           <Icon kind=IconKind::Link2 size=18 />
@@ -153,7 +188,11 @@ pub fn MappingPanel(
                               <Icon kind=IconKind::Upload size=14 />
                               "นำเข้า CSV"
                           </button>
-                          <button class="btn-icon" on:click=move |_ev: web_sys::MouseEvent| close()>
+                          <button
+                              class="btn-icon"
+                              aria-label="ปิด"
+                              on:click=move |_ev: web_sys::MouseEvent| close()
+                          >
                               <Icon kind=IconKind::X size=18 />
                           </button>
                       </div>
@@ -162,6 +201,8 @@ pub fn MappingPanel(
                   <Show when=move || mapping.feedback.get().is_some()>
                       <div
                           class="save-feedback"
+                          role="status"
+                          aria-live="polite"
                           class:save-ok=move || mapping.feedback_ok.get()
                           class:save-err=move || !mapping.feedback_ok.get()
                       >
@@ -182,10 +223,21 @@ pub fn MappingPanel(
               </div>
 
               <Show when=move || auto_open.get()>
-                  <div class="mapping-modal-overlay" on:click=close_auto>
-                      <div class="mapping-modal" on:click=move |ev: web_sys::MouseEvent| {
-                          ev.stop_propagation();
-                      }>
+                  <div
+                      class="mapping-modal-overlay"
+                      role="dialog"
+                      aria-modal="true"
+                      aria-label="ยืนยันการแมปอัตโนมัติ"
+                      on:click=close_auto
+                  >
+                      <div
+                          class="mapping-modal"
+                          tabindex="-1"
+                          node_ref=auto_modal_ref
+                          on:click=move |ev: web_sys::MouseEvent| {
+                              ev.stop_propagation();
+                          }
+                      >
                           <AutoMatchConfirm
                               on_apply=Callback::new(run_auto_apply)
                               on_close=Callback::new(move |_| close_auto(web_sys::MouseEvent::new("click").expect("event")))
@@ -195,10 +247,21 @@ pub fn MappingPanel(
               </Show>
 
               <Show when=move || csv_open.get()>
-                  <div class="mapping-modal-overlay" on:click=close_csv>
-                      <div class="mapping-modal" on:click=move |ev: web_sys::MouseEvent| {
-                          ev.stop_propagation();
-                      }>
+                  <div
+                      class="mapping-modal-overlay"
+                      role="dialog"
+                      aria-modal="true"
+                      aria-label="นำเข้า CSV"
+                      on:click=close_csv
+                  >
+                      <div
+                          class="mapping-modal"
+                          tabindex="-1"
+                          node_ref=csv_modal_ref
+                          on:click=move |ev: web_sys::MouseEvent| {
+                              ev.stop_propagation();
+                          }
+                      >
                           <CsvImport
                               on_preview=Callback::new(run_bulk_preview)
                               on_apply=Callback::new(run_bulk_apply)

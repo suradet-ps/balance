@@ -162,17 +162,21 @@ pub fn App() -> impl IntoView {
           />
 
           <Show when=move || dash.error.get().is_some()>
-              <div class="error-banner">
+              <div class="error-banner" role="alert">
                   <Icon kind=IconKind::AlertTriangle size=14 />
                   <span>{move || dash.error.get().unwrap_or_default()}</span>
-                  <button class="btn-dismiss" on:click=move |_| dash.error.set(None)>
+                  <button
+                      class="btn-dismiss"
+                      aria-label="ปิดข้อความแจ้งเตือน"
+                      on:click=move |_| dash.error.set(None)
+                  >
                       <Icon kind=IconKind::X size=12 />
                   </button>
               </div>
           </Show>
 
           <Show when=move || db.any_lost().get()>
-              <div class="lost-banner">
+              <div class="lost-banner" role="alert">
                   <Icon kind=IconKind::AlertTriangle size=14 />
                   <span>
                       "การเชื่อมต่อฐานข้อมูลหลุด — ข้อมูลที่แสดงเป็นชุดล่าสุด ระบบจะพยายามเชื่อมต่อใหม่โดยอัตโนมัติ"
@@ -200,7 +204,7 @@ pub fn App() -> impl IntoView {
                       && !db.any_lost().get()
               }
           >
-              <div class="no-conn-banner">
+              <div class="no-conn-banner" role="status">
                   <Icon kind=IconKind::PlugZap size=14 />
                   "ยังไม่ได้เชื่อมต่อฐานข้อมูล —"
                   <button class="link-btn" on:click=move |_| show_settings.set(true)>

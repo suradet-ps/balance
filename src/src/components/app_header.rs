@@ -58,8 +58,9 @@ pub fn AppHeader(
 
           <div class="header-controls">
               <div class="year-selector">
-                  <label>"ปีงบประมาณ"</label>
+                  <label for="fiscal-year">"ปีงบประมาณ"</label>
                   <select
+                      id="fiscal-year"
                       prop:value=move || dash.selected_year.get()
                       on:change=on_year_change
                   >

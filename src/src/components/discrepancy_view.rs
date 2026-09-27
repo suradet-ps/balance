@@ -79,7 +79,12 @@ pub fn DiscrepancyView() -> impl IntoView {
 
   view! {
       <Show when=move || { report.get().is_some() || loading.get() || error.get().is_some() }>
-          <section class="discrepancy-view card">
+          <section
+              class="discrepancy-view card"
+              tabindex="0"
+              role="region"
+              aria-label="การเปรียบเทียบ HOSxP กับ INVS"
+          >
               <div class="discrepancy-head">
                   <span class="discrepancy-title">
                       <Icon kind=IconKind::BarChart2 size=15 />
@@ -102,13 +107,13 @@ pub fn DiscrepancyView() -> impl IntoView {
               </div>
 
               <Show when=move || loading.get()>
-                  <div class="discrepancy-empty">
+                  <div class="discrepancy-empty" role="status">
                       <span class="animate-pulse">"กำลังคำนวณการเปรียบเทียบ…"</span>
                   </div>
               </Show>
 
               <Show when=move || !loading.get() && error.get().is_some()>
-                  <div class="discrepancy-empty discrepancy-error">
+                  <div class="discrepancy-empty discrepancy-error" role="alert">
                       <Icon kind=IconKind::AlertTriangle size=13 />
                       {move || error.get().unwrap_or_default()}
                   </div>
@@ -206,7 +211,7 @@ fn ReconcileTable(report: RwSignal<Option<ReconcileReport>>) -> impl IntoView {
   view! {
       <div class="discrepancy-body">
           <Show when=move || !flags().is_empty()>
-              <div class="flag-list">
+              <div class="flag-list" role="list">
                   <For each=move || flags() key=flag_key let:flag>
                       <FlagRow flag=flag />
                   </For>
@@ -214,19 +219,19 @@ fn ReconcileTable(report: RwSignal<Option<ReconcileReport>>) -> impl IntoView {
           </Show>
 
           <Show when=move || { flags().is_empty() && recon().is_some() }>
-              <div class="discrepancy-clean">
+              <div class="discrepancy-clean" role="status">
                   <Icon kind=IconKind::Check size=13 />
                   "ไม่พบความผิดปกติ — ยอดรวมทั้งปีและการซื้อสอดคล้องกัน"
               </div>
           </Show>
 
-          <div class="month-table">
-              <div class="month-row month-row--head">
-                  <span class="mt-month">"เดือน"</span>
-                  <span class="mt-num">"จ่าย (HOSxP)"</span>
-                  <span class="mt-num">"ซื้อ (INVS)"</span>
-                  <span class="mt-num">"สต็อกสะสม"</span>
-                  <span class="mt-num">"ราคาซื้อ/หน่วย"</span>
+          <div class="month-table" role="table" aria-label="ตารางเปรียบเทียบรายเดือน">
+              <div class="month-row month-row--head" role="row">
+                  <span class="mt-month" role="columnheader">"เดือน"</span>
+                  <span class="mt-num" role="columnheader">"จ่าย (HOSxP)"</span>
+                  <span class="mt-num" role="columnheader">"ซื้อ (INVS)"</span>
+                  <span class="mt-num" role="columnheader">"สต็อกสะสม"</span>
+                  <span class="mt-num" role="columnheader">"ราคาซื้อ/หน่วย"</span>
               </div>
               <For each=months key=|mi| *mi let:mi>
                   <MonthRow index=mi report=report />
@@ -268,12 +273,12 @@ fn MonthRow(index: usize, report: RwSignal<Option<ReconcileReport>>) -> impl Int
   };
 
   view! {
-      <div class="month-row">
-          <span class="mt-month">{move || FISCAL_MONTHS_SHORT[index]}</span>
-          <span class="mt-num">{move || format_qty(dispensed())}</span>
-          <span class="mt-num">{move || format_qty(purchased_qty())}</span>
-          <span class="mt-num mt-delta">{move || delta_text(stock())}</span>
-          <span class="mt-num">
+      <div class="month-row" role="row">
+          <span class="mt-month" role="cell">{move || FISCAL_MONTHS_SHORT[index]}</span>
+          <span class="mt-num" role="cell">{move || format_qty(dispensed())}</span>
+          <span class="mt-num" role="cell">{move || format_qty(purchased_qty())}</span>
+          <span class="mt-num mt-delta" role="cell">{move || delta_text(stock())}</span>
+          <span class="mt-num" role="cell">
               {move || {
                   price().map_or_else(
                       || "ไม่มีการซื้อ".to_owned(),
@@ -316,7 +321,7 @@ fn FlagRow(flag: DiscrepancyFlag) -> impl IntoView {
     )
   };
   view! {
-      <div class="flag-row">
+      <div class="flag-row" role="listitem">
           <Icon kind=IconKind::AlertTriangle size=13 />
           <span class="flag-text">
               {move || flag_message(&flag_state.get_value(), &month_label())}

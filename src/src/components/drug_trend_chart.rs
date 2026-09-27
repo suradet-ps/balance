@@ -195,10 +195,26 @@ pub fn DrugTrendChart(
               </Show>
           </div>
 
-          <div class="chart-stage" style="position:relative;flex:1;min-height:0">
+          <div class="chart-stage" style="position:relative;flex:1;min-height:0" aria-busy=move || loading.get()>
               <canvas
                   class="chart-canvas"
                   node_ref=canvas_ref
+                  role="img"
+                  aria-label=move || {
+                      data.get()
+                          .as_ref()
+                          .map_or_else(
+                              || "ยังไม่ได้เลือกยา — กราฟแนวโน้มรายเดือน".to_owned(),
+                              |d| {
+                                  format!(
+                                      "กราฟแนวโน้มรายเดือนของ {} {} ยอดรวมทั้งปี {}",
+                                      d.code(),
+                                      d.name(),
+                                      format_qty(d.total()),
+                                  )
+                              },
+                          )
+                  }
                   on:mousemove=on_mousemove
                   on:mouseleave=on_mouseleave
               ></canvas>
@@ -220,7 +236,7 @@ pub fn DrugTrendChart(
                   </div>
               </Show>
 
-              <div class="chart-tooltip" style="display:none" node_ref=tooltip_ref></div>
+              <div class="chart-tooltip" style="display:none" aria-hidden="true" node_ref=tooltip_ref></div>
           </div>
       </div>
   }

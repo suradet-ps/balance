@@ -31,6 +31,13 @@
   overflow-y: auto;
 }
 
+/* The panel takes programmatic focus when the dialog opens (tabindex="-1")
+   so screen readers announce it and Tab continues inside; it is not an
+   interactive control, so no ring. */
+.drawer-panel:focus {
+  outline: none;
+}
+
 .drawer-header {
   display: flex;
   align-items: center;

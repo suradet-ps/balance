@@ -5,6 +5,7 @@
 //! the save feedback line.  All state lives in the [`DbConfigContext`]; the
 //! drawer only owns the password-visibility toggles.
 
+use leptos::html::Div;
 use leptos::prelude::*;
 use leptos::task::spawn_local;
 use wasm_bindgen::JsCast;
@@ -68,23 +69,44 @@ pub fn ConnectionSettings(
     }
   };
 
+  // Move keyboard focus into the dialog on open and close it on Escape.
+  let panel_ref = NodeRef::<Div>::new();
+  panel_ref.on_load(move |el| {
+    let _ = el.focus();
+  });
+  let on_keydown = move |ev: web_sys::KeyboardEvent| {
+    if ev.key() == "Escape" {
+      ev.prevent_default();
+      close();
+    }
+  };
+
   view! {
       <Show when=move || visible.get()>
-          <div class="drawer-overlay" on:click=on_overlay>
-              <div class="drawer-panel">
+          <div
+              class="drawer-overlay"
+              role="dialog"
+              aria-modal="true"
+              aria-label="ตั้งค่าการเชื่อมต่อฐานข้อมูล"
+              on:click=on_overlay
+              on:keydown=on_keydown
+          >
+              <div class="drawer-panel" tabindex="-1" node_ref=panel_ref>
                   <div class="drawer-header">
                       <span class="drawer-title">
                           <Icon kind=IconKind::Settings2 size=16 />
                           "ตั้งค่าการเชื่อมต่อฐานข้อมูล"
                       </span>
-                      <button class="btn-icon" on:click=move |_| close()>
+                      <button class="btn-icon" aria-label="ปิด" on:click=move |_| close()>
                           <Icon kind=IconKind::X size=16 />
                       </button>
                   </div>
 
-                  <div class="tab-bar">
+                  <div class="tab-bar" role="tablist" aria-label="เลือกฐานข้อมูล">
                       <button
                           class="tab-btn"
+                          role="tab"
+                          aria-selected=move || db.active_tab.get() == SettingsTab::Hosxp
                           class:active=move || db.active_tab.get() == SettingsTab::Hosxp
                           on:click=move |_| db.active_tab.set(SettingsTab::Hosxp)
                       >
@@ -93,6 +115,8 @@ pub fn ConnectionSettings(
                       </button>
                       <button
                           class="tab-btn"
+                          role="tab"
+                          aria-selected=move || db.active_tab.get() == SettingsTab::Invs
                           class:active=move || db.active_tab.get() == SettingsTab::Invs
                           on:click=move |_| db.active_tab.set(SettingsTab::Invs)
                       >
@@ -102,7 +126,7 @@ pub fn ConnectionSettings(
                   </div>
 
                   <Show when=move || db.active_tab.get() == SettingsTab::Hosxp>
-                      <div class="form-section">
+                      <div class="form-section" role="tabpanel" aria-label="HOSxP (MySQL)">
                           <div class="status-row">
                               <span
                                   class="badge"
@@ -177,6 +201,10 @@ pub fn ConnectionSettings(
                                       />
                                       <button
                                           class="btn-icon small"
+                                          aria-label=move || {
+                                              if show_hosxp_pw.get() { "ซ่อนรหัสผ่าน" } else { "แสดงรหัสผ่าน" }
+                                          }
+                                          aria-pressed=move || show_hosxp_pw.get()
                                           on:click=move |_| show_hosxp_pw.update(|v| *v = !*v)
                                       >
                                           <Show when=move || show_hosxp_pw.get()>
@@ -191,7 +219,7 @@ pub fn ConnectionSettings(
                           </div>
 
                           <Show when=move || db.hosxp_error.get().is_some()>
-                              <div class="error-box">
+                              <div class="error-box" role="alert">
                                   <Icon kind=IconKind::AlertTriangle size=14 />
                                   {move || db.hosxp_error.get().unwrap_or_default()}
                               </div>
@@ -228,7 +256,7 @@ pub fn ConnectionSettings(
                   </Show>
 
                   <Show when=move || db.active_tab.get() == SettingsTab::Invs>
-                      <div class="form-section">
+                      <div class="form-section" role="tabpanel" aria-label="INVS (SQL Server)">
                           <div class="status-row">
                               <span
                                   class="badge"
@@ -313,6 +341,10 @@ pub fn ConnectionSettings(
                                       />
                                       <button
                                           class="btn-icon small"
+                                          aria-label=move || {
+                                              if show_invs_pw.get() { "ซ่อนรหัสผ่าน" } else { "แสดงรหัสผ่าน" }
+                                          }
+                                          aria-pressed=move || show_invs_pw.get()
                                           on:click=move |_| show_invs_pw.update(|v| *v = !*v)
                                       >
                                           <Show when=move || show_invs_pw.get()>
@@ -327,7 +359,7 @@ pub fn ConnectionSettings(
                           </div>
 
                           <Show when=move || db.invs_error.get().is_some()>
-                              <div class="error-box">
+                              <div class="error-box" role="alert">
                                   <Icon kind=IconKind::AlertTriangle size=14 />
                                   {move || db.invs_error.get().unwrap_or_default()}
                               </div>
@@ -376,6 +408,8 @@ fn SaveFeedback(db: DbConfigContext) -> impl IntoView {
       <Show when=move || db.save_message.get().is_some()>
           <div
               class="save-feedback"
+              role="status"
+              aria-live="polite"
               class:save-ok=move || db.save_message.get().as_deref() == Some("บันทึกสำเร็จ")
               class:save-err=move || db.save_message.get().as_deref() != Some("บันทึกสำเร็จ")
           >

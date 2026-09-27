@@ -39,6 +39,13 @@ pub fn DrugSearchPanel(
 
   let root_ref = NodeRef::<Div>::new();
 
+  // Stable ids so the input can announce itself as a combobox.
+  let list_id = match side {
+    Side::Hosxp => "drug-list-hosxp",
+    Side::Invs => "drug-list-invs",
+  };
+  let dropdown_open = move || show_dropdown.get() && (!results.get().is_empty() || loading.get());
+
   // ── Debounced search ────────────────────────────────────────────────
   // One long-lived, intentionally-leaked `setTimeout` handler reads the latest
   // query on every fire; each keystroke cancels the pending timer handle and
@@ -164,6 +171,24 @@ pub fn DrugSearchPanel(
     show_dropdown.set(false);
   };
 
+  // Close the list once keyboard focus leaves the panel (Tab past the last
+  // suggestion) — the mouse-only click-outside listener cannot see that.
+  let on_focusout = move |ev: web_sys::FocusEvent| {
+    let Some(related) = ev.related_target() else {
+      show_dropdown.set(false);
+      return;
+    };
+    let Some(root) = root_ref.get_untracked() else {
+      return;
+    };
+    let Ok(node) = related.dyn_into::<web_sys::Node>() else {
+      return;
+    };
+    if !root.contains(Some(&node)) {
+      show_dropdown.set(false);
+    }
+  };
+
   // ── Click-outside dismissal ─────────────────────────────────────────
   // The listener lives for the whole app (the panel is always mounted), so
   // the closure is intentionally leaked, matching the timers.rs precedent.
@@ -189,29 +214,37 @@ pub fn DrugSearchPanel(
   }
 
   view! {
-      <div class="search-panel" node_ref=root_ref>
+      <div class="search-panel" node_ref=root_ref on:focusout=on_focusout>
           <div class="search-input-wrap">
               <Icon kind=IconKind::Search class="search-icon" size=14 />
               <input
                   class="input search-input"
                   placeholder=placeholder
                   autocomplete="off"
+                  role="combobox"
+                  aria-label=placeholder
+                  aria-autocomplete="list"
+                  aria-expanded=dropdown_open
+                  aria-controls=list_id
+                  aria-activedescendant=move || {
+                      dropdown_open().then(|| format!("{list_id}-opt-{}", cursor.get()))
+                  }
                   prop:value=move || query.get()
                   on:input=on_input
                   on:focus=move |_| show_dropdown.set(true)
                   on:keydown=on_keydown
               />
               <Show when=move || !query.get().is_empty()>
-                  <button class="btn-clear" on:click=clear>
+                  <button class="btn-clear" aria-label="ล้างคำค้นหา" on:click=clear>
                       <Icon kind=IconKind::X size=12 />
                   </button>
               </Show>
           </div>
 
-          <Show when=move || { show_dropdown.get() && (!results.get().is_empty() || loading.get()) }>
-              <div class="dropdown">
+          <Show when=dropdown_open>
+              <div class="dropdown" role="listbox" id=list_id aria-label="ผลการค้นหายา">
                   <Show when=move || loading.get()>
-                      <div class="dropdown-loading">
+                      <div class="dropdown-loading" role="status">
                           <span class="animate-pulse">"กำลังค้นหา…"</span>
                       </div>
                   </Show>
@@ -223,6 +256,9 @@ pub fn DrugSearchPanel(
                       >
                           <button
                               class="dropdown-item"
+                              role="option"
+                              id=move || format!("{list_id}-opt-{}", index.get())
+                              aria-selected=move || cursor.get() == index.get()
                               class:active=move || cursor.get() == index.get()
                               on:mouseenter=move |_| cursor.set(index.get_untracked())
                               on:click=move |_| select_drug(item.clone())
