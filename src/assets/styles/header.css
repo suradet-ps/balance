@@ -117,8 +117,8 @@
 }
 
 .app-header .badge-connected {
-  background: rgba(20, 158, 97, 0.15);
-  color: var(--green-light);
+  background: rgba(217, 119, 6, 0.15);
+  color: var(--orange-light);
 }
 
 .app-header .badge-disconnected {
@@ -133,7 +133,7 @@
   display: inline-block;
 }
 
-.app-header .dot-green { background: var(--green-light); }
+.app-header .dot-orange { background: var(--orange-light); }
 .app-header .dot-red { background: var(--red-light); }
 
 /* Settings button */

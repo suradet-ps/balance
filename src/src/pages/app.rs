@@ -234,7 +234,7 @@ pub fn App() -> impl IntoView {
 
               <section class="panel panel-invs">
                   <div class="panel-label">
-                      <span class="panel-dot dot-green"></span>
+                      <span class="panel-dot dot-orange"></span>
                       "INVS — มูลค่าการสั่งซื้อ"
                   </div>
                   <DrugSearchPanel

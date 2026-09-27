@@ -44,8 +44,8 @@
 }
 
 .kpi-icon--invs {
-  background: var(--green-subtle);
-  color: var(--green);
+  background: var(--orange-subtle);
+  color: var(--orange);
 }
 
 .kpi-icon--link {
@@ -78,7 +78,7 @@
 }
 
 .value-hosxp { color: var(--primary); }
-.value-invs { color: var(--green); }
+.value-invs { color: var(--orange-dark); }
 .value-link { color: var(--primary-dark); }
 .kpi-na { color: var(--text-muted); }
 

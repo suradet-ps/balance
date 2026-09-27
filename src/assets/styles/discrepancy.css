@@ -118,8 +118,8 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  color: var(--green-dark);
-  background: var(--green-subtle);
+  color: var(--orange-dark);
+  background: var(--orange-subtle);
   border-radius: var(--radius-sm);
   padding: 8px 12px;
   font-size: 13px;

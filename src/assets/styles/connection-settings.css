@@ -124,7 +124,7 @@
   flex-shrink: 0;
 }
 
-.drawer-overlay .dot-green { background: var(--green); }
+.drawer-overlay .dot-orange { background: var(--orange); }
 .drawer-overlay .dot-red { background: var(--red); }
 
 .form-grid {
@@ -192,8 +192,8 @@
 }
 
 .save-feedback.save-ok {
-  color: var(--green);
-  background: rgba(52, 199, 89, 0.1);
+  color: var(--orange-dark);
+  background: var(--orange-subtle);
 }
 
 .save-feedback.save-err {

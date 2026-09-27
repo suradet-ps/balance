@@ -301,12 +301,12 @@
 }
 
 .detail-current {
-  background: var(--green-subtle);
-  border-color: rgba(20, 158, 97, 0.3);
+  background: var(--orange-subtle);
+  border-color: rgba(217, 119, 6, 0.3);
 }
 
 .detail-current .detail-card-title {
-  color: var(--green-dark);
+  color: var(--orange-dark);
 }
 
 .detail-current-row {
@@ -318,7 +318,7 @@
 }
 
 .detail-current-row svg {
-  color: var(--green-dark);
+  color: var(--orange-dark);
 }
 
 .detail-btn {

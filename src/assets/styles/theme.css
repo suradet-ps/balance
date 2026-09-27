@@ -7,11 +7,11 @@
    ============================================================ */
 
 :root {
-  /* Primary — Balance Purple */
-  --primary: #7132f5;
-  --primary-dark: #5741d8;
-  --primary-deep: #5b1ecf;
-  --primary-subtle: rgba(133, 91, 251, 0.16);
+  /* Primary — Balance Purple (aligned with the icon's violet sphere) */
+  --primary: #7c3aed;
+  --primary-dark: #6d28d9;
+  --primary-deep: #5b21b6;
+  --primary-subtle: rgba(124, 58, 237, 0.16);
 
   /* Neutral */
   --cool-gray: #686b82;
@@ -19,10 +19,10 @@
   --border-gray: #dedee5;
   --near-black: #101114;
 
-  /* Semantic */
-  --green: #149e61;
-  --green-dark: #026b3f;
-  --green-subtle: rgba(20, 158, 97, 0.16);
+  /* Semantic — INVS identity & success (gold/orange, aligned with the icon) */
+  --orange: #d97706;
+  --orange-dark: #b45309;
+  --orange-subtle: rgba(217, 119, 6, 0.16);
   --red: #e03e3e;
   --red-subtle: rgba(224, 62, 62, 0.1);
 
@@ -38,24 +38,24 @@
   --text-on-primary: #ffffff;
 
   /* Chart — HOSxP side (purple family) */
-  --chart-hosxp: #7132f5;
-  --chart-hosxp-light: rgba(113, 50, 245, 0.18);
-  --chart-hosxp-line: #5741d8;
-  --chart-hosxp-tooltip-bg: #1a1040;
+  --chart-hosxp: #7c3aed;
+  --chart-hosxp-light: rgba(124, 58, 237, 0.18);
+  --chart-hosxp-line: #6d28d9;
+  --chart-hosxp-tooltip-bg: #2e1065;
 
-  /* Chart — INVS side (green family) */
-  --chart-invs: #149e61;
-  --chart-invs-light: rgba(20, 158, 97, 0.18);
-  --chart-invs-line: #026b3f;
-  --chart-invs-tooltip-bg: #1a2e1a;
+  /* Chart — INVS side (orange family) */
+  --chart-invs: #d97706;
+  --chart-invs-light: rgba(217, 119, 6, 0.18);
+  --chart-invs-line: #b45309;
+  --chart-invs-tooltip-bg: #2a1d08;
 
   /* Status light variants */
-  --green-light: #4ade80;
+  --orange-light: #fbbf24;
   --red-light: #f87171;
 
   /* Borders & Shadows */
   --border-subtle: rgba(104, 107, 130, 0.12);
-  --border-active: rgba(113, 50, 245, 0.4);
+  --border-active: rgba(124, 58, 237, 0.4);
   --shadow-card: 0 2px 12px rgba(0, 0, 0, 0.03);
   --shadow-hover: 0 4px 24px rgba(0, 0, 0, 0.06);
 
@@ -238,8 +238,8 @@ body {
 }
 
 .badge-connected {
-  background: var(--green-subtle);
-  color: var(--green-dark);
+  background: var(--orange-subtle);
+  color: var(--orange-dark);
 }
 
 .badge-disconnected {

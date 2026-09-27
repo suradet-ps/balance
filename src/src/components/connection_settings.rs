@@ -111,7 +111,7 @@ pub fn ConnectionSettings(
                               >
                                   <span
                                       class="status-dot"
-                                      class:dot-green=move || db.hosxp_connected.get()
+                                      class:dot-orange=move || db.hosxp_connected.get()
                                       class:dot-red=move || !db.hosxp_connected.get()
                                   />
                                   {move || {
@@ -237,7 +237,7 @@ pub fn ConnectionSettings(
                               >
                                   <span
                                       class="status-dot"
-                                      class:dot-green=move || db.invs_connected.get()
+                                      class:dot-orange=move || db.invs_connected.get()
                                       class:dot-red=move || !db.invs_connected.get()
                                   />
                                   {move || {
@@ -369,7 +369,7 @@ pub fn ConnectionSettings(
 }
 
 /// The shared save-feedback line (`บันทึกสำเร็จ` or the backend error),
-/// styled green on success and red otherwise — exactly like the original.
+/// styled orange on success and red otherwise — exactly like the original.
 #[component]
 fn SaveFeedback(db: DbConfigContext) -> impl IntoView {
   view! {

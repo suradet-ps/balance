@@ -2,7 +2,7 @@
 
 ## 1. Product Context
 
-**Balance** is a Tauri 2 desktop dashboard (Rust/Leptos frontend built by Trunk) that unifies **HOSxP** and **INVS** into a side-by-side drug inventory comparison view for Thai hospitals. The UI is a white-background, two-panel dashboard: HOSxP data (drug quantities, purple family) on the left, INVS data (drug values, green family) on the right.
+**Balance** is a Tauri 2 desktop dashboard (Rust/Leptos frontend built by Trunk) that unifies **HOSxP** and **INVS** into a side-by-side drug inventory comparison view for Thai hospitals. The UI is a white-background, two-panel dashboard: HOSxP data (drug quantities, purple family) on the left, INVS data (drug values, orange family) on the right. Both families are sampled from the app icon (`icon-master.svg`): violet spheres for HOSxP, gold spheres for INVS.
 
 **The single source of truth for all visual tokens is `src/assets/styles/theme.css`.** Component stylesheets must reference tokens via `var(--token)` only — raw hex/rgba values anywhere else fail CI (`design-enforcement` job).
 
@@ -11,10 +11,10 @@
 ### Primary — Balance Purple (HOSxP side)
 | Token | Value | Role |
 |---|---|---|
-| `--primary` | `#7132f5` | Primary CTA, brand accent, links, active tab |
-| `--primary-dark` | `#5741d8` | Button hover, outlined variants |
-| `--primary-deep` | `#5b1ecf` | Deepest purple (unused elsewhere — reserved) |
-| `--primary-subtle` | `rgba(133, 91, 251, 0.16)` | Subtle icon/CTA backgrounds |
+| `--primary` | `#7c3aed` | Primary CTA, brand accent, links, active tab |
+| `--primary-dark` | `#6d28d9` | Button hover, outlined variants |
+| `--primary-deep` | `#5b21b6` | Deepest purple (= icon sphere dark stop — reserved) |
+| `--primary-subtle` | `rgba(124, 58, 237, 0.16)` | Subtle icon/CTA backgrounds |
 
 ### Neutral
 | Token | Value | Role |
@@ -30,20 +30,21 @@
 ### Semantic
 | Token | Value | Role |
 |---|---|---|
-| `--green` | `#149e61` | Success / INVS identity |
-| `--green-dark` | `#026b3f` | Badge text on green |
+| `--orange` | `#d97706` | Success / INVS identity (icons, dots, bars — 3:1 on white) |
+| `--orange-dark` | `#b45309` | Text on light surfaces (5:1 on white) |
+| `--orange-subtle` | `rgba(217, 119, 6, 0.16)` | INVS/success chip backgrounds |
 | `--red` | `#e03e3e` | Errors, disconnect states |
-| `--green-light` / `--red-light` | `#4ade80` / `#f87171` | Status dots & badges on dark header |
+| `--orange-light` / `--red-light` | `#fbbf24` / `#f87171` | Status dots & badges on dark header |
 
 ### Chart — semantic per side
 | Token | Value | Role |
 |---|---|---|
-| `--chart-hosxp` | `#7132f5` | HOSxP series color, tooltip border |
-| `--chart-hosxp-line` | `#5741d8` | HOSxP line series |
-| `--chart-hosxp-tooltip-bg` | `#1a1040` | HOSxP tooltip fill |
-| `--chart-invs` | `#149e61` | INVS series color, tooltip border |
-| `--chart-invs-line` | `#026b3f` | INVS line series |
-| `--chart-invs-tooltip-bg` | `#1a2e1a` | INVS tooltip fill |
+| `--chart-hosxp` | `#7c3aed` | HOSxP series color, tooltip border |
+| `--chart-hosxp-line` | `#6d28d9` | HOSxP line series |
+| `--chart-hosxp-tooltip-bg` | `#2e1065` | HOSxP tooltip fill |
+| `--chart-invs` | `#d97706` | INVS series color, tooltip border |
+| `--chart-invs-line` | `#b45309` | INVS line series |
+| `--chart-invs-tooltip-bg` | `#2a1d08` | INVS tooltip fill |
 
 ## 3. Typography
 
@@ -85,9 +86,9 @@ Single font family for both headings and body — hierarchy comes from size/weig
 
 ### Badges
 - `.badge`: pill (`border-radius: 999px`), `padding: 4px 10px`, 12px / 500
-- `.badge-connected`: `--green-subtle` bg, `--green-dark` text
+- `.badge-connected`: `--orange-subtle` bg, `--orange-dark` text
 - `.badge-disconnected`: `--red-subtle` bg, `--red` text
-- On dark header: translucent bgs (`rgba(20,158,97,0.15)` / `rgba(224,62,62,0.12)`) with `--green-light` / `--red-light` text
+- On dark header: translucent bgs (`rgba(217,119,6,0.15)` / `rgba(224,62,62,0.12)`) with `--orange-light` / `--red-light` text
 
 ### Tabs (connection drawer)
 - `.tab-bar`: `--bg-elevated` track, radius `--radius-lg`, 3px padding
@@ -123,13 +124,13 @@ Transitions: `--transition-fast` (150ms) for color/bg states, `--transition-med`
 
 ### Do
 - Route every color through `theme.css` tokens — raw hex outside `theme.css` fails CI
-- Use `--primary` for CTAs, links, active states; `--green`/`--red` strictly for positive/negative semantics
-- Keep HOSxP = purple family and INVS = green family everywhere (dots, KPI icons, charts)
+- Use `--primary` for CTAs, links, active states; `--orange`/`--red` strictly for positive/negative semantics
+- Keep HOSxP = purple family and INVS = orange family everywhere (dots, KPI icons, charts)
 - Use 12px radius (`--radius-lg`) for interactive controls; pill only for badges/status dots
 - Use `--font-mono` for numeric values, drug codes, and identifiers
 
 ### Don't
-- Don't introduce new purples/greens outside the defined token scale
+- Don't introduce new purples/oranges outside the defined token scale
 - Don't use `border-radius: 999px` on buttons or inputs (12px max)
 - Don't hard-code shadows or spacings that already have tokens
 
@@ -143,9 +144,9 @@ Desktop-first Tauri app; layout assumes a wide window (two-panel grid). Constrai
 ## 9. Agent Prompt Guide
 
 ### Quick Token Reference
-- Brand/primary: `var(--primary)` = `#7132f5` (hover `--primary-dark`)
+- Brand/primary: `var(--primary)` = `#7c3aed` (hover `--primary-dark`)
 - Text: `--text-primary` (`#101114`), secondary `--text-secondary` (`#686b82`), muted `--text-muted` (`#9497a9`)
-- Success `--green` / `#149e61`, danger `--red` / `#e03e3e`
+- Success `--orange` / `#d97706` (text `--orange-dark`), danger `--red` / `#e03e3e`
 - Surfaces: `--bg-base` white, `--bg-surface` `#f8f9fc`, `--bg-elevated` `#f1f2f6`
 - Fonts: IBM Plex Sans (UI), IBM Plex Mono (numbers)
 
@@ -153,4 +154,4 @@ Desktop-first Tauri app; layout assumes a wide window (two-panel grid). Constrai
 - "Create a card: white `--bg-base`, `--radius-xl`, `1px solid var(--border-subtle)`, `--shadow-card`. Heading 16px 700 with `letter-spacing: -0.5px`."
 - "Create a CTA button: `--primary` background, white text, `--radius-lg` (12px), `padding: 8px 16px`, hover `--primary-dark`, active scale 0.97."
 - "Create an input: `1px solid var(--border-gray)`, `--radius-lg`, focus ring `0 0 0 3px var(--primary-subtle)`."
-- "Create a HOSxP status badge on the dark header: translucent green bg, `--green-light` text, pill radius, 11px."
+- "Create a HOSxP status badge on the dark header: translucent orange bg, `--orange-light` text, pill radius, 11px."

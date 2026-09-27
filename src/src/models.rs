@@ -321,7 +321,7 @@ impl BackendError {
 pub enum Side {
   /// HOSxP (MySQL) — quantities, calendar months, purple palette.
   Hosxp,
-  /// INVS (SQL Server) — order quantities, fiscal months, green palette.
+  /// INVS (SQL Server) — order quantities, fiscal months, orange palette.
   Invs,
 }
 

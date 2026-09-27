@@ -114,7 +114,7 @@ pub struct MappingContext {
   pub bulk_loading: RwSignal<bool>,
   /// Drawer feedback line (`สำเร็จ` or the backend error), auto-cleared.
   pub feedback: RwSignal<Option<String>>,
-  /// Whether the current feedback is a success (green) or error (red).
+  /// Whether the current feedback is a success (orange) or error (red).
   pub feedback_ok: RwSignal<bool>,
   /// Match status of the drug currently selected on the HOSxP panel.
   pub hosxp_link: RwSignal<Option<DrugMappingStatus>>,

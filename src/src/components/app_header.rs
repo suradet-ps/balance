@@ -76,7 +76,7 @@ pub fn AppHeader(
               >
                   <span
                       class="status-dot"
-                      class:dot-green=move || db.hosxp_connected.get()
+                      class:dot-orange=move || db.hosxp_connected.get()
                       class:dot-red=move || !db.hosxp_connected.get()
                   />
                   "MySQL"
@@ -89,7 +89,7 @@ pub fn AppHeader(
               >
                   <span
                       class="status-dot"
-                      class:dot-green=move || db.invs_connected.get()
+                      class:dot-orange=move || db.invs_connected.get()
                       class:dot-red=move || !db.invs_connected.get()
                   />
                   "MSSQL"

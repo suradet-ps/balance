@@ -106,9 +106,9 @@ pub fn DrugTrendChart(
           "--chart-invs"
         },
         if side == Side::Hosxp {
-          "#7132f5"
+          "#7c3aed"
         } else {
-          "#149e61"
+          "#d97706"
         },
       );
       let tooltip_bg = css_var(
@@ -117,7 +117,7 @@ pub fn DrugTrendChart(
         } else {
           "--chart-invs-tooltip-bg"
         },
-        "#1a1040",
+        "#2e1065",
       );
       let mut html = format!(
         "<span class=\"chart-tooltip-label\">{}</span><br/>จำนวน: <span class=\"chart-tooltip-value\" style=\"color:{bar_color}\">{}</span> ({pct}%)",
@@ -323,15 +323,15 @@ fn draw_chart(
       "--chart-invs"
     },
     if side == Side::Hosxp {
-      "#7132f5"
+      "#7c3aed"
     } else {
-      "#149e61"
+      "#d97706"
     },
   );
   let bar_light = if side == Side::Hosxp {
-    "rgba(113,50,245,0.3)"
+    "rgba(124,58,237,0.3)"
   } else {
-    "rgba(20,158,97,0.3)"
+    "rgba(217,119,6,0.3)"
   };
   let line_color = css_var(
     if side == Side::Hosxp {
@@ -340,9 +340,9 @@ fn draw_chart(
       "--chart-invs-line"
     },
     if side == Side::Hosxp {
-      "#5741d8"
+      "#6d28d9"
     } else {
-      "#026b3f"
+      "#b45309"
     },
   );
   let text_secondary = css_var("--text-secondary", "#686b82");

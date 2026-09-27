@@ -56,7 +56,7 @@
 }
 
 .dot-purple { background: var(--primary); }
-.dot-green { background: var(--green); }
+.dot-orange { background: var(--orange); }
 
 .panel-divider {
   background: var(--border-subtle);
@@ -96,7 +96,7 @@
 
 .no-conn-banner {
   background: var(--primary-subtle);
-  border-bottom: 1px solid rgba(113, 50, 245, 0.2);
+  border-bottom: 1px solid rgba(124, 58, 237, 0.2);
   color: var(--primary-dark);
   font-size: 13px;
   padding: 7px 20px;
