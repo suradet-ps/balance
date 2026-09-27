@@ -63,7 +63,7 @@
 .kpi-label {
   font-size: 10px;
   font-weight: 600;
-  color: var(--text-muted);
+  color: var(--text-secondary);
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
@@ -75,12 +75,13 @@
   align-items: baseline;
   gap: 4px;
   white-space: nowrap;
+  font-variant-numeric: tabular-nums;
 }
 
 .value-hosxp { color: var(--primary); }
 .value-invs { color: var(--orange-dark); }
 .value-link { color: var(--primary-dark); }
-.kpi-na { color: var(--text-muted); }
+.kpi-na { color: var(--text-secondary); }
 
 .kpi-unit {
   font-size: 11px;

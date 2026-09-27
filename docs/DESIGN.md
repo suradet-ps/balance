@@ -14,14 +14,15 @@
 | `--primary` | `#7c3aed` | Primary CTA, brand accent, links, active tab |
 | `--primary-dark` | `#6d28d9` | Button hover, outlined variants |
 | `--primary-deep` | `#5b21b6` | Deepest purple (= icon sphere dark stop — reserved) |
+| `--primary-light` | `#a78bfa` | Accents and focus rings on dark surfaces |
 | `--primary-subtle` | `rgba(124, 58, 237, 0.16)` | Subtle icon/CTA backgrounds |
 
 ### Neutral
 | Token | Value | Role |
 |---|---|---|
 | `--near-black` | `#101114` | Primary text; dark header background |
-| `--cool-gray` | `#686b82` | Secondary text |
-| `--silver-blue` | `#9497a9` | Muted text |
+| `--cool-gray` | `#686b82` | Secondary text (AA on all surfaces) |
+| `--silver-blue` | `#9497a9` | **Decorative/disabled only** — below the 4.5:1 text floor, never for meaningful text |
 | `--border-gray` | `#dedee5` | Input borders, dividers |
 | `--bg-base` | `#ffffff` | Primary surface |
 | `--bg-surface` | `#f8f9fc` | KPI bar background |
@@ -120,6 +121,14 @@ Single font family for both headings and body — hierarchy comes from size/weig
 
 Transitions: `--transition-fast` (150ms) for color/bg states, `--transition-med` (250ms) for layout/shadow/overlays.
 
+### Accessibility rules (WCAG 2.2 AA target)
+- **Focus**: a global `:focus-visible` ring (`2px solid var(--primary)`, 2px offset) covers every control; on the dark header the ring switches to `--primary-light`. Only non-interactive dialog containers suppress it after programmatic focus.
+- **Targets**: interactive controls are ≥24×24px (icon buttons get `min-width/min-height`).
+- **Motion**: `prefers-reduced-motion: reduce` collapses animations/transitions to ~0ms.
+- **Live regions**: banners/errors use `role="alert"`; save feedback and async status text use `role="status"`.
+- **Semantics**: drawers/modals are `role="dialog"` + `aria-modal`, take focus on open and close on Escape; the drug search is an ARIA combobox (listbox/option); the month grid exposes table roles; flags are a list; the canvas chart is a labelled `role="img"`.
+- **Numerals**: KPI values, table cells and tooltip numbers use `font-variant-numeric: tabular-nums` so columns don't jitter.
+
 ## 7. Do's and Don'ts
 
 ### Do
@@ -128,6 +137,8 @@ Transitions: `--transition-fast` (150ms) for color/bg states, `--transition-med`
 - Keep HOSxP = purple family and INVS = orange family everywhere (dots, KPI icons, charts)
 - Use 12px radius (`--radius-lg`) for interactive controls; pill only for badges/status dots
 - Use `--font-mono` for numeric values, drug codes, and identifiers
+- Keep meaningful text at `--text-primary` / `--text-secondary`; reserve `--text-muted` for decoration and disabled states
+- Give every interactive element a visible `:focus-visible` state and a ≥24px pointer target
 
 ### Don't
 - Don't introduce new purples/oranges outside the defined token scale

@@ -362,7 +362,6 @@ fn draw_chart(
     },
   );
   let text_secondary = css_var("--text-secondary", "#686b82");
-  let text_muted = css_var("--text-muted", "#9497a9");
 
   let font = "10px 'IBM Plex Mono', 'Courier New', monospace";
   ctx.set_font(font);
@@ -383,7 +382,7 @@ fn draw_chart(
 
   // Dashed horizontal grid lines + right-aligned y labels.
   ctx.set_stroke_style_str("rgba(104,107,130,0.08)");
-  ctx.set_fill_style_str(&text_muted);
+  ctx.set_fill_style_str(&text_secondary);
   ctx.set_text_align("right");
   ctx.set_text_baseline("middle");
   let dash = js_sys::Array::new();

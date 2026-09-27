@@ -35,7 +35,7 @@
 
 .chart-drug-code {
   font-size: 11px;
-  color: var(--text-muted);
+  color: var(--text-secondary);
   background: var(--bg-elevated);
   padding: 2px 6px;
   border-radius: 4px;
@@ -63,6 +63,7 @@
   font-weight: 700;
   color: var(--text-primary);
   margin-left: 4px;
+  font-variant-numeric: tabular-nums;
 }
 
 .echarts-canvas {
@@ -82,7 +83,7 @@
   align-items: center;
   justify-content: center;
   gap: 10px;
-  color: var(--text-muted);
+  color: var(--text-secondary);
   text-align: center;
   font-size: 13px;
   line-height: 1.6;
@@ -120,4 +121,5 @@
 
 .chart-tooltip-value {
   font-weight: 700;
+  font-variant-numeric: tabular-nums;
 }

@@ -219,7 +219,7 @@
 
 .badge-unmapped {
   background: var(--bg-elevated);
-  color: var(--text-muted);
+  color: var(--text-secondary);
 }
 
 .badge-muted {
@@ -230,7 +230,7 @@
 .mapping-empty {
   padding: 18px 10px;
   text-align: center;
-  color: var(--text-muted);
+  color: var(--text-secondary);
   font-size: 13px;
 }
 
@@ -243,7 +243,7 @@
   justify-content: center;
   gap: 10px;
   height: 100%;
-  color: var(--text-muted);
+  color: var(--text-secondary);
   font-size: 14px;
   font-weight: 500;
 }
@@ -255,7 +255,7 @@
 .mapping-detail-hint {
   font-size: 12px;
   font-weight: 400;
-  color: var(--text-muted);
+  color: var(--text-secondary);
 }
 
 .mapping-detail {
@@ -340,7 +340,7 @@
 }
 
 .detail-loading {
-  color: var(--text-muted);
+  color: var(--text-secondary);
   font-size: 12px;
 }
 
@@ -488,7 +488,7 @@
 }
 
 .auto-preview-arrow {
-  color: var(--text-muted);
+  color: var(--text-secondary);
 }
 
 .auto-preview-actions {

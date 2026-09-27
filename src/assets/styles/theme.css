@@ -20,6 +20,10 @@
   --border-gray: #dedee5;
   --near-black: #101114;
 
+  /* Muted text — decorative/disabled only (below the 4.5:1 text floor;
+     use --text-secondary for any text that carries meaning). */
+  --text-muted: #9497a9;
+
   /* Semantic — INVS identity & success (gold/orange, aligned with the icon) */
   --orange: #d97706;
   --orange-dark: #b45309;
@@ -230,7 +234,7 @@ body {
 }
 
 .input::placeholder {
-  color: var(--text-muted);
+  color: var(--text-secondary);
 }
 
 /* ─── Card ──────────────────────────────────────────────────── */
