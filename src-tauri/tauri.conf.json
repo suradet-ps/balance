@@ -15,12 +15,13 @@
       {
         "title": "Balance — HOSxP & INVS Dashboard",
         "width": 1440,
-        "height": 900,
+        "height": 800,
         "minWidth": 1100,
         "minHeight": 700,
         "resizable": true,
         "fullscreen": false,
-        "center": true
+        "center": true,
+        "visible": false
       }
     ],
     "security": {

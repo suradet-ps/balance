@@ -29,6 +29,36 @@ pub fn run() {
         .setup(|app| {
             let store = store::open_store(app.handle()).map_err(std::io::Error::other)?;
             app.manage(store);
+
+            // The window starts hidden (`visible: false` in tauri.conf.json).
+            // An oversized window gets clamped by the OS when it is finally
+            // shown — which throws the `center` config off — so shrink the
+            // window to the primary monitor's work area first (subtracting
+            // the window chrome, since `set_size` sets the inner size),
+            // center it, and only then reveal it.
+            if let Some(window) = app.get_webview_window("main") {
+                if let Ok(Some(monitor)) = app.primary_monitor() {
+                    let scale = monitor.scale_factor();
+                    let work = monitor.work_area();
+                    if let (Ok(outer), Ok(inner)) = (window.outer_size(), window.inner_size()) {
+                        // Work area and window sizes are physical pixels; the
+                        // chrome (title bar + borders) is outer − inner.
+                        let chrome_w = outer.width.saturating_sub(inner.width) as f64 / scale;
+                        let chrome_h = outer.height.saturating_sub(inner.height) as f64 / scale;
+                        let inner_w = inner.width as f64 / scale;
+                        let inner_h = inner.height as f64 / scale;
+                        let max_w = work.size.width as f64 / scale - chrome_w;
+                        let max_h = work.size.height as f64 / scale - chrome_h;
+                        if inner_w > max_w || inner_h > max_h {
+                            let width = inner_w.min(max_w).max(1.0);
+                            let height = inner_h.min(max_h).max(1.0);
+                            window.set_size(tauri::LogicalSize::new(width, height))?;
+                        }
+                    }
+                }
+                window.center()?;
+                window.show()?;
+            }
             Ok(())
         })
         .manage(HosxpDbState::new())
